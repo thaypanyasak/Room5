@@ -127,7 +127,7 @@ class HistoryPeriodDetailScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: _quickStatTile(
-                            title: 'ສາງ Kratom',
+                            title: 'ສາງ ທ້ອມ',
                             value: currencyFormat.format(period.preStockItems
                                 .where((i) => i.type == 'kratom')
                                 .fold<double>(0, (sum, i) => sum + i.totalCost)),

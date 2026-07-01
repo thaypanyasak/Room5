@@ -138,6 +138,17 @@ class FinanceNotifier extends Notifier<FinanceState> {
     await _storage.saveMembers(updatedList);
   }
 
+  Future<void> updateMemberAvatar(String memberId, String avatarUrl) async {
+    final updatedList = state.members.map((m) {
+      if (m.id == memberId) {
+        return m.copyWith(avatarUrl: avatarUrl);
+      }
+      return m;
+    }).toList();
+    state = state.copyWith(members: updatedList);
+    await _storage.saveMembers(updatedList);
+  }
+
   // Expense management
   Future<void> addExpense(Expense expense) async {
     final updatedList = [expense, ...state.expenses];

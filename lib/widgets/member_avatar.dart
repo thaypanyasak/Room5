@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/member.dart';
 
@@ -14,6 +15,7 @@ class MemberAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasUrl = member.avatarUrl.isNotEmpty && member.avatarUrl.startsWith('http');
+    final isLocalFile = member.avatarUrl.isNotEmpty && !member.avatarUrl.startsWith('http');
     final initials = member.name.isNotEmpty ? member.name[0].toUpperCase() : '?';
 
     // High quality modern color palette for fallback circles
@@ -52,14 +54,35 @@ class MemberAvatar extends StatelessWidget {
                 },
               ),
             )
-          : Text(
-              initials,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: radius * 0.8,
-              ),
-            ),
+          : isLocalFile
+              ? ClipOval(
+                  child: Image.file(
+                    File(member.avatarUrl),
+                    fit: BoxFit.cover,
+                    width: radius * 2,
+                    height: radius * 2,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Text(
+                          initials,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: radius * 0.8,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
+              : Text(
+                  initials,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: radius * 0.8,
+                  ),
+                ),
     );
   }
 }

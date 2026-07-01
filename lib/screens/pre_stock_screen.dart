@@ -43,7 +43,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
         title: Text(
-          isKratom ? 'Kratom ໃນສາງ' : 'ນ້ຳຢາ ໃນສາງ',
+          isKratom ? 'ທ້ອມ ໃນສາງ' : 'ນ້ຳຢາ ໃນສາງ',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -85,7 +85,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                   const SizedBox(height: 6),
                   Text(
                     isKratom
-                        ? '*ທຸກໆລາຍການ Kratom ໃນສາງຈະຫານສະເໝີກັນໃຫ້ທຸກຄົນໃນກຸ່ມ.'
+                        ? '*ທຸກໆລາຍການ ທ້ອມ ໃນສາງຈະຫານສະເໝີກັນໃຫ້ທຸກຄົນໃນກຸ່ມ.'
                         : '*ທຸກໆລາຍການ ນ້ຳຢາ ໃນສາງຈະຫານສະເໝີກັນໃຫ້ທຸກຄົນໃນກຸ່ມ.',
                     style: const TextStyle(
                       color: Colors.white54,
@@ -133,7 +133,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                             const SizedBox(height: 12),
                             Text(
                               isKratom
-                                  ? 'ຍັງບໍ່ມີເຄື່ອງໃນສາງ Kratom ເທື່ອ'
+                                  ? 'ຍັງບໍ່ມີເຄື່ອງໃນສາງ ທ້ອມ ເທື່ອ'
                                   : 'ຍັງບໍ່ມີນ້ຳຢາໃນສາງເທື່ອ',
                               style: const TextStyle(color: Colors.white38),
                             ),
@@ -340,7 +340,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
         },
         icon: const Icon(Icons.add, color: Colors.white),
         label: Text(
-          isKratom ? 'ນຳເຂົ້າສາງ Kratom' : 'ນຳເຂົ້າສາງນ້ຳຢາ',
+          isKratom ? 'ນຳເຂົ້າສາງ ທ້ອມ' : 'ນຳເຂົ້າສາງນ້ຳຢາ',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -422,7 +422,7 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isKratom ? 'ເພີ່ມ Kratom ເຂົ້າສາງ' : 'ເພີ່ມນ້ຳຢາ ເຂົ້າສາງ',
+                isKratom ? 'ເພີ່ມ ທ້ອມ ເຂົ້າສາງ' : 'ເພີ່ມນ້ຳຢາ ເຂົ້າສາງ',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -436,7 +436,7 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
                 controller: _nameController,
                 label:
                     isKratom
-                        ? 'ຊື່ Kratom (ຕົວຢ່າງ: Kratom 1 ຍົກ, ຜົງ Kratom 3kg...)'
+                        ? 'ຊື່ ທ້ອມ (ຕົວຢ່າງ: ທ້ອມ 1 ຍົກ, ຜົງ ທ້ອມ 3kg...)'
                         : 'ຊື່ນ້ຳຢາ (ຕົວຢ່າງ: ນ້ຳຢາລົດສະຕໍເບີຣີ, Syrup ຫວານ...)',
                 validator:
                     (val) =>
@@ -559,7 +559,7 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
                     }
                   },
                   child: Text(
-                    isKratom ? 'ບັນທຶກເຂົ້າສາງ Kratom' : 'ບັນທຶກເຂົ້າສາງນ້ຳຢາ',
+                    isKratom ? 'ບັນທຶກເຂົ້າສາງ ທ້ອມ' : 'ບັນທຶກເຂົ້າសາງນ້ຳຢາ',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -665,7 +665,7 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isKratom ? 'ແກ້ໄຂຂໍ້ມູນ Kratom' : 'ແກ້ໄຂຂໍ້ມູນນ້ຳຢາ',
+                isKratom ? 'ແກ້ໄຂຂໍ້ມູນ ທ້ອມ' : 'ແກ້ໄຂຂໍ້ມູນນ້ຳຢາ',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,

@@ -58,7 +58,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.local_cafe_outlined),
               activeIcon: Icon(Icons.local_cafe_rounded, color: Color(0xFF10B981)),
-              label: 'ສາງ Kratom',
+              label: 'ສາງ ທ້ອມ',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.water_drop_outlined),

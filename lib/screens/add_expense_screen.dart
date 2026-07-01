@@ -180,7 +180,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
                     switch (cat) {
                       case ExpenseCategory.kratom:
-                        label = 'Kratom';
+                        label = 'ທ້ອມ';
                         icon = Icons.local_cafe_rounded;
                         color = const Color(0xFF10B981);
                         break;
@@ -207,7 +207,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           setState(() {
                             _selectedCategory = cat;
                             if (cat == ExpenseCategory.kratom && _titleController.text.isEmpty) {
-                              _titleController.text = 'ຊຸດ Kratom';
+                              _titleController.text = 'ຊຸດທ້ອມ';
                             }
                           });
                         },
@@ -302,8 +302,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildDropdownField<String>(
-                            labelText: 'ເລືອກ Kratom ໃນສາງ',
-                            hintText: kratomStockItems.isEmpty ? 'ບໍ່ມີ Kratom ໃນສາງ' : 'ເລືອກ Kratom',
+                            labelText: 'ເລືອກ ທ້ອມ ໃນສາງ',
+                            hintText: kratomStockItems.isEmpty ? 'ບໍ່ມີ ທ້ອມ ໃນສາງ' : 'ເລືອກ ທ້ອມ',
                             value: _selectedKratomStockId,
                             items: kratomDropdownItems,
                             onChanged: (val) {
@@ -331,7 +331,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   const SizedBox(height: 16),
                   _buildTextField(
                     controller: _iceCostController,
-                    labelText: 'ຄ່ານ້ຳກ້ອນ / ອື່ນໆ (₭)',
+                    labelText: 'ຄ່ານ້ຳກ້ອນ - ນ້ຳປຸງ (₭)',
                     hintText: '0',
                     keyboardType: TextInputType.number,
                     inputFormatters: [CurrencyInputFormatter()],
@@ -349,7 +349,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('ລວມທັງໝົດຂອງຊຸດ (ຄ່ານ້ຳກ້ອນ/ອື່ນໆ):', style: TextStyle(color: Colors.white70)),
+                        const Text('ລວມທັງໝົດຂອງຊຸດ (ຄ່ານ້ຳກ້ອນ - ນ້ຳປຸງ):', style: TextStyle(color: Colors.white70)),
                         Text(
                           NumberFormat.currency(locale: 'vi_VN', symbol: 'K', decimalDigits: 0).format(_calculateTotalAmount()),
                           style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 18),
@@ -419,7 +419,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('ໃຜຮ່ວມຈ່າຍ/ໃຜດື່ມ?', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+                    const Text('ໃຜຮ່ວມຈ່າຍ/ໃຜກິນ?', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
                     TextButton(
                       onPressed: () {
                         setState(() {
