@@ -47,22 +47,31 @@ class MemberDetailScreen extends ConsumerWidget {
     // Combined activities sorted by date desc
     final List<_ActivityItem> activities = [];
 
-    // Add stock purchases
+    // Add stock purchases (credited only for portions actually consumed in the period)
     for (var item in stockItemsBought) {
-      activities.add(
-        _ActivityItem(
-          date: item.date,
-          title: 'ຊື້ສາງ: ${item.itemName}',
-          subtitle: 'ຈຳນວນ ${item.portions} ຄັ້ງ • ຊື້ເຂົ້າສາງ',
-          amount: item.totalCost,
-          isPositive: true,
-          icon: item.type == 'kratom' ? Icons.local_cafe : Icons.water_drop,
-          iconColor:
-              item.type == 'kratom'
-                  ? const Color(0xFFD97706)
-                  : const Color(0xFF8B5CF6),
-        ),
-      );
+      final usedCount = state.expenses.where((e) =>
+          (item.type == 'kratom' && e.kratomStockId == item.id) ||
+          (item.type == 'syrup' && e.syrupStockId == item.id)
+      ).length;
+      final portionCost = item.totalCost / (item.portions > 0 ? item.portions : 1);
+      final consumedValue = usedCount * portionCost;
+      
+      if (consumedValue > 0) {
+        activities.add(
+          _ActivityItem(
+            date: item.date,
+            title: 'ຊື້ສາງ: ${item.itemName} (ສ່ວນທີ່ໃຊ້)',
+            subtitle: 'ໃຊ້ແລ້ວ $usedCount/${item.portions} ຄັ້ງ • ຊື້ເຂົ້າສາງ',
+            amount: consumedValue,
+            isPositive: true,
+            icon: item.type == 'kratom' ? Icons.local_cafe : Icons.water_drop,
+            iconColor:
+                item.type == 'kratom'
+                    ? const Color(0xFFD97706)
+                    : const Color(0xFF8B5CF6),
+          ),
+        );
+      }
     }
 
     // Add expenses where they paid (shows as positive / credit)

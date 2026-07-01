@@ -162,6 +162,17 @@ class FinanceNotifier extends Notifier<FinanceState> {
     await _storage.saveExpenses(updatedList);
   }
 
+  Future<void> updateExpense(Expense updatedExpense) async {
+    final updatedList = state.expenses.map((e) {
+      if (e.id == updatedExpense.id) {
+        return updatedExpense;
+      }
+      return e;
+    }).toList();
+    state = state.copyWith(expenses: updatedList);
+    await _storage.saveExpenses(updatedList);
+  }
+
   // Pre-stocked items management
   Future<void> addPreStockItem(PreStockItem item) async {
     final updatedList = [item, ...state.preStockItems];
@@ -226,15 +237,7 @@ class FinanceNotifier extends Notifier<FinanceState> {
       }
     }
 
-    // Credit upfront warehouse purchases immediately to the buyer
-    for (var item in state.preStockItems) {
-      final buyerId = item.buyerId;
-      if (balances.containsKey(buyerId)) {
-        balances[buyerId] = balances[buyerId]! + item.totalCost;
-      }
-    }
-
-    // Process consumption of pre-stocked items from expenses (debit participants only)
+    // Process consumption of pre-stocked items from expenses (debit participants, credit buyer)
     for (var expense in state.expenses) {
       if (expense.category == ExpenseCategory.kratom && expense.participantIds.isNotEmpty) {
         // Kratom Leaf consumption portion
@@ -252,6 +255,12 @@ class FinanceNotifier extends Notifier<FinanceState> {
               if (balances.containsKey(partId)) {
                 balances[partId] = balances[partId]! - participantShare;
               }
+            }
+
+            // Credit the buyer of this stock item for this consumed portion!
+            final buyerId = preItem.buyerId;
+            if (balances.containsKey(buyerId)) {
+              balances[buyerId] = balances[buyerId]! + portionCost;
             }
           }
         }
@@ -271,6 +280,12 @@ class FinanceNotifier extends Notifier<FinanceState> {
               if (balances.containsKey(partId)) {
                 balances[partId] = balances[partId]! - participantShare;
               }
+            }
+
+            // Credit the buyer of this stock item for this consumed portion!
+            final buyerId = preItem.buyerId;
+            if (balances.containsKey(buyerId)) {
+              balances[buyerId] = balances[buyerId]! + portionCost;
             }
           }
         }
@@ -335,7 +350,10 @@ class FinanceNotifier extends Notifier<FinanceState> {
     return transfers;
   }
 
-  Future<void> settleAndStartNewPeriod(String periodName) async {
+  Future<void> settleAndStartNewPeriod({
+    required String periodName,
+    required bool keepRemainingStock,
+  }) async {
     final transfers = calculateOptimizedTransfers();
     final archivedTransfers = transfers.map((t) => ArchivedTransfer(
       fromId: t.from.id,
@@ -364,14 +382,41 @@ class FinanceNotifier extends Notifier<FinanceState> {
 
     final updatedPeriods = [...state.periods, newPeriod];
 
+    final List<PreStockItem> carriedOverStock = [];
+    if (keepRemainingStock) {
+      for (var item in state.preStockItems) {
+        final usedCount = state.expenses.where((e) =>
+            (item.type == 'kratom' && e.kratomStockId == item.id) ||
+            (item.type == 'syrup' && e.syrupStockId == item.id)
+        ).length;
+        final remainingPortions = item.portions - usedCount;
+        if (remainingPortions > 0) {
+          final portionCost = item.totalCost / (item.portions > 0 ? item.portions : 1);
+          final remainingCost = remainingPortions * portionCost;
+          
+          carriedOverStock.add(PreStockItem(
+            id: _uuid.v4(),
+            itemName: item.itemName,
+            type: item.type,
+            totalCost: remainingCost,
+            buyerId: item.buyerId,
+            date: DateTime.now(),
+            notes: '${item.notes.isNotEmpty ? "${item.notes} • " : ""}ຍົກມາຈາກ ${periodName}',
+            portions: remainingPortions,
+            isOutOfStock: false,
+          ));
+        }
+      }
+    }
+
     state = state.copyWith(
       expenses: [],
-      preStockItems: [],
+      preStockItems: carriedOverStock,
       periods: updatedPeriods,
     );
 
     await _storage.saveExpenses([]);
-    await _storage.savePreStockItems([]);
+    await _storage.savePreStockItems(carriedOverStock);
     await _storage.savePeriods(updatedPeriods);
   }
 

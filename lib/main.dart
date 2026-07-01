@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/main_navigation_screen.dart';
 
 void main() {
@@ -28,7 +29,10 @@ class MyApp extends StatelessWidget {
           surface: Color(0xFF1E293B), // Slate 800
           error: Colors.redAccent,
         ),
-        fontFamily: 'Roboto', // Modern standard system font
+        fontFamily: GoogleFonts.notoSansLao().fontFamily,
+        textTheme: GoogleFonts.notoSansLaoTextTheme(
+          ThemeData(brightness: Brightness.dark).textTheme,
+        ),
         scaffoldBackgroundColor: const Color(0xFF0F172A),
       ),
       home: const MainNavigationScreen(),

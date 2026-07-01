@@ -7,6 +7,7 @@ import 'settle_up_screen.dart';
 import 'history_periods_screen.dart';
 import 'member_detail_screen.dart';
 import '../widgets/member_avatar.dart';
+import '../utils/currency_formatter.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -563,185 +564,98 @@ class DashboardScreen extends ConsumerWidget {
     final double syrupPortionCost = syrupStock != null
         ? (syrupStock.totalCost / (syrupStock.portions > 0 ? syrupStock.portions : 1))
         : 0.0;
-    final double iceCost = expense.category == ExpenseCategory.kratom ? expense.totalAmount : 0.0;
-    final double totalSessionCost = kratomPortionCost + syrupPortionCost + iceCost;
-    final double sharePerPerson = expense.participantIds.isNotEmpty
-        ? (expense.category == ExpenseCategory.kratom
-            ? (totalSessionCost / expense.participantIds.length)
-            : (expense.totalAmount / expense.participantIds.length))
-        : 0.0;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1E293B),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(28),
-              topRight: Radius.circular(28),
-            ),
-          ),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                expense.title.isEmpty ? 'ລາຍລະອຽດກິດຈະກຳ' : expense.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'ວັນທີ: ${DateFormat('dd/MM/yyyy HH:mm').format(expense.date)}',
-                style: const TextStyle(color: Colors.white38, fontSize: 12),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'ລາຍລະອຽດຄ່າໃຊ້ຈ່າຍ',
-                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
-                ),
-                child: Column(
-                  children: [
-                    if (expense.category == ExpenseCategory.kratom) ...[
-                      if (kratomStock != null)
-                        _buildDetailRow(
-                          label: 'ໃບ Kratom (${kratomStock.itemName})',
-                          value: currencyFormat.format(kratomPortionCost),
-                          subText: 'ຊື້ໂດຍ: ${state.members.firstWhere((m) => m.id == kratomStock!.buyerId, orElse: () => Member(id: '', name: 'ບໍ່ຮູ້ຊື່', avatarUrl: '')).name}',
-                        ),
-                      if (syrupStock != null)
-                        _buildDetailRow(
-                          label: 'ນ້ຳຢາ (${syrupStock.itemName})',
-                          value: currencyFormat.format(syrupPortionCost),
-                          subText: 'ຊື້ໂດຍ: ${state.members.firstWhere((m) => m.id == syrupStock!.buyerId, orElse: () => Member(id: '', name: 'ບໍ່ຮູ້ຊື່', avatarUrl: '')).name}',
-                        ),
-                      if (iceCost > 0)
-                        _buildDetailRow(
-                          label: 'ຄ່ານ້ຳກ້ອນ - ນ້ຳປຸງ',
-                          value: currencyFormat.format(iceCost),
-                          subText: 'ຈ່າຍໂດຍ: ${expense.payers.keys.map((k) => state.members.firstWhere((m) => m.id == k, orElse: () => Member(id: k, name: k, avatarUrl: '')).name).join(", ")}',
-                        ),
-                      const Divider(color: Colors.white12, height: 20),
-                      _buildDetailRow(
-                        label: 'ລາຄາລວມ 1 ຊຸດ',
-                        value: currencyFormat.format(totalSessionCost),
-                        isBold: true,
-                        valueColor: const Color(0xFF10B981),
-                      ),
-                    ] else ...[
-                      _buildDetailRow(
-                        label: expense.category == ExpenseCategory.utilities ? 'ຄ່າໄຟ-ນ້ຳ' : 'ຄ່າອາຫານ-ທົ່ວໄປ',
-                        value: currencyFormat.format(expense.totalAmount),
-                        subText: 'ຈ່າຍໂດຍ: ${expense.payers.keys.map((k) => state.members.firstWhere((m) => m.id == k, orElse: () => Member(id: k, name: k, avatarUrl: '')).name).join(", ")}',
-                      ),
-                      const Divider(color: Colors.white12, height: 20),
-                      _buildDetailRow(
-                        label: 'ລວມທັງໝົດ',
-                        value: currencyFormat.format(expense.totalAmount),
-                        isBold: true,
-                        valueColor: const Color(0xFF10B981),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'ຜູ້ເຂົ້າຮ່ວມຫານ (${expense.participantIds.length} ຄົນ)',
-                style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.35),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: expense.participantIds.map((partId) {
-                    final member = state.members.firstWhere((m) => m.id == partId, orElse: () => Member(id: partId, name: partId, avatarUrl: ''));
-                    final paidAmount = expense.payers[partId] ?? 0.0;
-                    final netShare = paidAmount - sharePerPerson;
+        return Consumer(
+          builder: (context, ref, _) {
+            final currentExpense = ref.watch(financeProvider).expenses.firstWhere((e) => e.id == expense.id, orElse: () => expense);
+            final double currentIceCost = currentExpense.category == ExpenseCategory.kratom ? currentExpense.totalAmount : 0.0;
+            final double currentTotalSessionCost = kratomPortionCost + syrupPortionCost + currentIceCost;
+            final double currentSharePerPerson = currentExpense.participantIds.isNotEmpty
+                ? (currentExpense.category == ExpenseCategory.kratom
+                    ? (currentTotalSessionCost / currentExpense.participantIds.length)
+                    : (currentExpense.totalAmount / currentExpense.participantIds.length))
+                : 0.0;
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          MemberAvatar(member: member, radius: 18),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  member.name,
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                                ),
-                                if (paidAmount > 0)
-                                  Text(
-                                    'ຈ່າຍກ່ອນ: ${currencyFormat.format(paidAmount)}',
-                                    style: const TextStyle(color: Colors.white54, fontSize: 10),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '${netShare >= 0 ? "+" : ""}${currencyFormat.format(netShare)}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: netShare >= 0 ? const Color(0xFF10B981) : const Color(0xFFF87171),
-                                ),
-                              ),
-                              Text(
-                                'ສ່ວນຫານ: -${currencyFormat.format(sharePerPerson)}',
-                                style: const TextStyle(color: Colors.white38, fontSize: 9),
-                              ),
-                            ],
-                          )
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            return _ExpenseDetailModalContent(
+              expense: currentExpense,
+              state: state,
+              ref: ref,
+              currencyFormat: currencyFormat,
+              kratomStock: kratomStock,
+              syrupStock: syrupStock,
+              kratomPortionCost: kratomPortionCost,
+              syrupPortionCost: syrupPortionCost,
+              iceCost: currentIceCost,
+              totalSessionCost: currentTotalSessionCost,
+              sharePerPerson: currentSharePerPerson,
+            );
+          },
         );
       },
     );
+  }
+}
+
+class _ExpenseDetailModalContent extends StatefulWidget {
+  final Expense expense;
+  final FinanceState state;
+  final WidgetRef ref;
+  final NumberFormat currencyFormat;
+  final PreStockItem? kratomStock;
+  final PreStockItem? syrupStock;
+  final double kratomPortionCost;
+  final double syrupPortionCost;
+  final double iceCost;
+  final double totalSessionCost;
+  final double sharePerPerson;
+
+  const _ExpenseDetailModalContent({
+    required this.expense,
+    required this.state,
+    required this.ref,
+    required this.currencyFormat,
+    this.kratomStock,
+    this.syrupStock,
+    required this.kratomPortionCost,
+    required this.syrupPortionCost,
+    required this.iceCost,
+    required this.totalSessionCost,
+    required this.sharePerPerson,
+  });
+
+  @override
+  State<_ExpenseDetailModalContent> createState() => _ExpenseDetailModalContentState();
+}
+
+class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> {
+  bool _isEditing = false;
+  late List<String> _editedParticipants;
+  late TextEditingController _titleController;
+  late TextEditingController _iceController;
+
+  @override
+  void initState() {
+    super.initState();
+    _editedParticipants = List.from(widget.expense.participantIds);
+    _titleController = TextEditingController(text: widget.expense.title);
+    
+    final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
+    final initialCost = widget.expense.category == ExpenseCategory.kratom
+        ? (widget.expense.iceAmount ?? widget.expense.totalAmount)
+        : widget.expense.totalAmount;
+    _iceController = TextEditingController(text: displayFormat.format(initialCost).trim());
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _iceController.dispose();
+    super.dispose();
   }
 
   Widget _buildDetailRow({
@@ -788,4 +702,407 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final double inputIce = double.tryParse(_iceController.text.replaceAll('.', '')) ?? 0.0;
+    final double previewTotalSession = widget.kratomPortionCost + widget.syrupPortionCost + inputIce;
+    final double previewShare = _editedParticipants.isNotEmpty
+        ? (widget.expense.category == ExpenseCategory.kratom
+            ? (previewTotalSession / _editedParticipants.length)
+            : (inputIce / _editedParticipants.length))
+        : 0.0;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E293B),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+        ),
+      ),
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2.5),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (_isEditing) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'ແກ້ໄຂຂໍ້ມູນກິດຈະກຳ',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white60),
+                  onPressed: () {
+                    setState(() {
+                      _isEditing = false;
+                      _editedParticipants = List.from(widget.expense.participantIds);
+                      _titleController.text = widget.expense.title;
+                      final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
+                      final initialCost = widget.expense.category == ExpenseCategory.kratom
+                          ? (widget.expense.iceAmount ?? widget.expense.totalAmount)
+                          : widget.expense.totalAmount;
+                      _iceController.text = displayFormat.format(initialCost).trim();
+                    });
+                  },
+                )
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _titleController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'ຊື່ກິດຈະກຳ',
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFF10B981)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _iceController,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.number,
+              inputFormatters: [CurrencyInputFormatter()],
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: widget.expense.category == ExpenseCategory.kratom ? 'ຄ່ານ້ຳກ້ອນ - ນ້ຳປຸງ (₭)' : 'ຈຳນວນເງິນ (₭)',
+                labelStyle: const TextStyle(color: Colors.white70),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFF10B981)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'ຜູ້ເຂົ້າຮ່ວມຫານ (${_editedParticipants.length} ຄົນ)',
+              style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.25),
+              child: ListView(
+                shrinkWrap: true,
+                children: widget.state.members.map((member) {
+                  final isSelected = _editedParticipants.contains(member.id);
+                  return CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Row(
+                      children: [
+                        MemberAvatar(member: member, radius: 14),
+                        const SizedBox(width: 8),
+                        Text(member.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                      ],
+                    ),
+                    value: isSelected,
+                    activeColor: const Color(0xFF10B981),
+                    checkColor: Colors.black,
+                    checkboxShape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    onChanged: (checked) {
+                      setState(() {
+                        if (checked == true) {
+                          if (!_editedParticipants.contains(member.id)) {
+                            _editedParticipants.add(member.id);
+                          }
+                        } else {
+                          _editedParticipants.remove(member.id);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A).withOpacity(0.4),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _buildDetailRow(
+                    label: widget.expense.category == ExpenseCategory.kratom ? 'ຄ່ານ້ຳກ້ອນ - ນ້ຳປຸງໃໝ່' : 'ຈຳນວນເງິນໃໝ່',
+                    value: widget.currencyFormat.format(inputIce),
+                  ),
+                  if (widget.expense.category == ExpenseCategory.kratom)
+                    _buildDetailRow(
+                      label: 'ລາຄາລວມ 1 ຊຸດໃໝ່',
+                      value: widget.currencyFormat.format(previewTotalSession),
+                      isBold: true,
+                      valueColor: const Color(0xFF10B981),
+                    ),
+                  const Divider(color: Colors.white12),
+                  _buildDetailRow(
+                    label: 'ສ່ວນຫານຕໍ່ຄົນ (ຄາດຄະເນ)',
+                    value: widget.currencyFormat.format(previewShare),
+                    isBold: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isEditing = false;
+                      _editedParticipants = List.from(widget.expense.participantIds);
+                      _titleController.text = widget.expense.title;
+                      final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
+                      final initialCost = widget.expense.category == ExpenseCategory.kratom
+                          ? (widget.expense.iceAmount ?? widget.expense.totalAmount)
+                          : widget.expense.totalAmount;
+                      _iceController.text = displayFormat.format(initialCost).trim();
+                    });
+                  },
+                  child: const Text('ຍົກເລີກ', style: TextStyle(color: Colors.white70)),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () async {
+                    if (_editedParticipants.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('ກະລຸນາເລືອກຢ່າງໜ້ອຍ 1 ຄົນເພື່ອຫານເງິນ!')),
+                      );
+                      return;
+                    }
+
+                    final newAmount = double.tryParse(_iceController.text.replaceAll('.', '')) ?? 0.0;
+
+                    final Map<String, double> updatedPayers = {};
+                    if (widget.expense.payers.isNotEmpty) {
+                      final singlePayerId = widget.expense.payers.keys.first;
+                      updatedPayers[singlePayerId] = newAmount;
+                    }
+
+                    final updatedExpense = widget.expense.copyWith(
+                      title: _titleController.text.trim(),
+                      totalAmount: newAmount,
+                      iceAmount: widget.expense.category == ExpenseCategory.kratom ? newAmount : null,
+                      payers: updatedPayers,
+                      participantIds: _editedParticipants,
+                    );
+
+                    final messenger = ScaffoldMessenger.of(context);
+                    await widget.ref.read(financeProvider.notifier).updateExpense(updatedExpense);
+                    
+                    setState(() {
+                      _isEditing = false;
+                    });
+                    
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('ອັບເດດຂໍ້ມູນສຳເລັດ!')),
+                    );
+                  },
+                  child: const Text('ບັນທຶກ', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            )
+          ] else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.expense.title.isEmpty ? 'ລາຍລະອຽດກິດຈະກຳ' : widget.expense.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'ວັນທີ: ${DateFormat('dd/MM/yyyy HH:mm').format(widget.expense.date)}',
+                        style: const TextStyle(color: Colors.white38, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_rounded, color: Color(0xFF10B981)),
+                  onPressed: () {
+                    setState(() {
+                      _isEditing = true;
+                    });
+                  },
+                )
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'ລາຍລະອຽດຄ່າໃຊ້ຈ່າຍ',
+              style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A).withOpacity(0.4),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: Column(
+                children: [
+                  if (widget.expense.category == ExpenseCategory.kratom) ...[
+                    if (widget.kratomStock != null)
+                      _buildDetailRow(
+                        label: 'ໃບ Kratom (${widget.kratomStock!.itemName})',
+                        value: widget.currencyFormat.format(widget.kratomPortionCost),
+                        subText: 'ຊື້ໂດຍ: ${widget.state.members.firstWhere((m) => m.id == widget.kratomStock!.buyerId, orElse: () => Member(id: '', name: 'ບໍ່ຮູ້ຊື່', avatarUrl: '')).name}',
+                      ),
+                    if (widget.syrupStock != null)
+                      _buildDetailRow(
+                        label: 'ນ້ຳຢາ (${widget.syrupStock!.itemName})',
+                        value: widget.currencyFormat.format(widget.syrupPortionCost),
+                        subText: 'ຊື້ໂດຍ: ${widget.state.members.firstWhere((m) => m.id == widget.syrupStock!.buyerId, orElse: () => Member(id: '', name: 'ບໍ່ຮູ້ຊື່', avatarUrl: '')).name}',
+                      ),
+                    if (widget.iceCost > 0)
+                      _buildDetailRow(
+                        label: 'ຄ່ານ້ຳກ້ອນ - ນ້ຳປຸງ',
+                        value: widget.currencyFormat.format(widget.iceCost),
+                        subText: 'ຈ່າຍໂດຍ: ${widget.expense.payers.keys.map((k) => widget.state.members.firstWhere((m) => m.id == k, orElse: () => Member(id: k, name: k, avatarUrl: '')).name).join(", ")}',
+                      ),
+                    const Divider(color: Colors.white12, height: 20),
+                    _buildDetailRow(
+                      label: 'ລາຄາລວມ 1 ຊຸດ',
+                      value: widget.currencyFormat.format(widget.totalSessionCost),
+                      isBold: true,
+                      valueColor: const Color(0xFF10B981),
+                    ),
+                  ] else ...[
+                    _buildDetailRow(
+                      label: widget.expense.category == ExpenseCategory.utilities ? 'ຄ່າໄຟ-ນ້ຳ' : 'ຄ່າອາຫານ-ທົ່ວໄປ',
+                      value: widget.currencyFormat.format(widget.expense.totalAmount),
+                      subText: 'ຈ່າຍໂດຍ: ${widget.expense.payers.keys.map((k) => widget.state.members.firstWhere((m) => m.id == k, orElse: () => Member(id: k, name: k, avatarUrl: '')).name).join(", ")}',
+                    ),
+                    const Divider(color: Colors.white12, height: 20),
+                    _buildDetailRow(
+                      label: 'ລວມທັງໝົດ',
+                      value: widget.currencyFormat.format(widget.expense.totalAmount),
+                      isBold: true,
+                      valueColor: const Color(0xFF10B981),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'ຜູ້ເຂົ້າຮ່ວມຫານ (${widget.expense.participantIds.length} ຄົນ)',
+              style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.35),
+              child: ListView(
+                shrinkWrap: true,
+                children: widget.expense.participantIds.map((partId) {
+                  final member = widget.state.members.firstWhere((m) => m.id == partId, orElse: () => Member(id: partId, name: partId, avatarUrl: ''));
+                  final paidAmount = widget.expense.payers[partId] ?? 0.0;
+                  final netShare = paidAmount - widget.sharePerPerson;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        MemberAvatar(member: member, radius: 18),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                member.name,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              if (paidAmount > 0)
+                                Text(
+                                  'ຈ່າຍກ່ອນ: ${widget.currencyFormat.format(paidAmount)}',
+                                  style: const TextStyle(color: Colors.white54, fontSize: 10),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${netShare >= 0 ? "+" : ""}${widget.currencyFormat.format(netShare)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: netShare >= 0 ? const Color(0xFF10B981) : const Color(0xFFF87171),
+                              ),
+                            ),
+                            Text(
+                              'Boss: -${widget.currencyFormat.format(widget.sharePerPerson)}',
+                              style: const TextStyle(color: Colors.white38, fontSize: 9),
+                            ),
+                          ],
+                        )
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ],
+      ),
+    );
+  }
 }
+

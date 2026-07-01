@@ -21,7 +21,11 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(financeProvider);
-    final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'K', decimalDigits: 0);
+    final currencyFormat = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: 'K',
+      decimalDigits: 0,
+    );
 
     // Filter items based on selected tab type
     final items =
@@ -161,12 +165,13 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                               alignment: Alignment.centerRight,
                               padding: const EdgeInsets.only(right: 20),
                               decoration: BoxDecoration(
-                                color: Colors.redAccent.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(16),
+                                color: Colors.redAccent.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(20),
                               ),
                               child: const Icon(
-                                Icons.delete,
+                                Icons.delete_outline_rounded,
                                 color: Colors.white,
+                                size: 28,
                               ),
                             ),
                             onDismissed: (_) {
@@ -181,140 +186,362 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                             },
                             child: Opacity(
                               opacity: item.isOutOfStock ? 0.55 : 1.0,
-                              child: InkWell(
-                                onTap: () => _showEditPreStockSheet(context, item),
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.03),
-                                    ),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 14),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F172A),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color:
+                                        item.isOutOfStock
+                                            ? Colors.redAccent.withValues(
+                                              alpha: 0.15,
+                                            )
+                                            : const Color(
+                                              0xFF10B981,
+                                            ).withValues(alpha: 0.25),
+                                    width: 1.5,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      MemberAvatar(member: buyer, radius: 18),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item.itemName,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                                fontSize: 15,
-                                                decoration:
-                                                    item.isOutOfStock
-                                                        ? TextDecoration
-                                                            .lineThrough
-                                                        : null,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: InkWell(
+                                    onTap:
+                                        () => _showEditPreStockSheet(
+                                          context,
+                                          item,
+                                        ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(18),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Title & Price Badge
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  item.itemName,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                    fontSize: 17,
+                                                    letterSpacing: 0.3,
+                                                    decoration:
+                                                        item.isOutOfStock
+                                                            ? TextDecoration
+                                                                .lineThrough
+                                                            : null,
+                                                  ),
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'ຊື້ໂດຍ: ${buyer.name} • ${DateFormat('dd/MM/yyyy').format(item.date)} • ${item.portions} ຄັ້ງ',
-                                              style: const TextStyle(
-                                                color: Colors.white38,
-                                                fontSize: 11,
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 5,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      item.isOutOfStock
+                                                          ? Colors.redAccent
+                                                              .withValues(
+                                                                alpha: 0.1,
+                                                              )
+                                                          : const Color(
+                                                            0xFF10B981,
+                                                          ).withValues(
+                                                            alpha: 0.1,
+                                                          ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                child: Text(
+                                                  currencyFormat.format(
+                                                    item.totalCost,
+                                                  ),
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color:
+                                                        item.isOutOfStock
+                                                            ? const Color(
+                                                              0xFFEF4444,
+                                                            )
+                                                            : const Color(
+                                                              0xFF10B981,
+                                                            ),
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
                                               ),
-                                            ),
-                                            if (item.notes.isNotEmpty) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
+                                            ],
+                                          ),
+                                          const SizedBox(height: 14),
+
+                                          // Portions Progress Bar
+                                          Builder(
+                                            builder: (context) {
+                                              final usedCount =
+                                                  state.expenses
+                                                      .where(
+                                                        (e) =>
+                                                            (item.type ==
+                                                                    'kratom' &&
+                                                                e.kratomStockId ==
+                                                                    item.id) ||
+                                                            (item.type ==
+                                                                    'syrup' &&
+                                                                e.syrupStockId ==
+                                                                    item.id),
+                                                      )
+                                                      .length;
+                                              final remaining =
+                                                  item.portions - usedCount;
+                                              final progress =
+                                                  item.portions > 0
+                                                      ? (remaining /
+                                                              item.portions)
+                                                          .clamp(0.0, 1.0)
+                                                      : 0.0;
+
+                                              return Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        'ປະລິມານຄົງເຫຼືອ:',
+                                                        style: TextStyle(
+                                                          color: Colors.white
+                                                              .withValues(
+                                                                alpha: 0.5,
+                                                              ),
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        'ຍັງເຫຼືອ $remaining/${item.portions} ຄັ້ງ',
+                                                        style: TextStyle(
+                                                          color:
+                                                              item.isOutOfStock ||
+                                                                      remaining ==
+                                                                          0
+                                                                  ? const Color(
+                                                                    0xFFEF4444,
+                                                                  )
+                                                                  : const Color(
+                                                                    0xFF10B981,
+                                                                  ),
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                    child: LinearProgressIndicator(
+                                                      value: progress,
+                                                      minHeight: 7,
+                                                      backgroundColor: Colors
+                                                          .white
+                                                          .withValues(
+                                                            alpha: 0.06,
+                                                          ),
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                            Color
+                                                          >(
+                                                            item.isOutOfStock ||
+                                                                    remaining ==
+                                                                        0
+                                                                ? const Color(
+                                                                  0xFFEF4444,
+                                                                )
+                                                                : const Color(
+                                                                  0xFF10B981,
+                                                                ),
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 16),
+
+                                          // Buyer & Date Footer
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  MemberAvatar(
+                                                    member: buyer,
+                                                    radius: 12,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    buyer.name,
+                                                    style: TextStyle(
+                                                      color: Colors.white
+                                                          .withValues(
+                                                            alpha: 0.7,
+                                                          ),
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons
+                                                        .calendar_today_rounded,
+                                                    size: 11,
+                                                    color: Colors.white
+                                                        .withValues(
+                                                          alpha: 0.35,
+                                                        ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    DateFormat(
+                                                      'dd/MM/yyyy',
+                                                    ).format(item.date),
+                                                    style: TextStyle(
+                                                      color: Colors.white
+                                                          .withValues(
+                                                            alpha: 0.35,
+                                                          ),
+                                                      fontSize: 11,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  // Switch for availability
+                                                  Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Text(
+                                                        item.isOutOfStock
+                                                            ? 'ໝົດ'
+                                                            : 'ຍັງ',
+                                                        style: TextStyle(
+                                                          color:
+                                                              item.isOutOfStock
+                                                                  ? const Color(
+                                                                    0xFFEF4444,
+                                                                  )
+                                                                  : const Color(
+                                                                    0xFF10B981,
+                                                                  ),
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      SizedBox(
+                                                        width: 32,
+                                                        height: 20,
+                                                        child: FittedBox(
+                                                          fit: BoxFit.fill,
+                                                          child: Switch(
+                                                            value:
+                                                                !item
+                                                                    .isOutOfStock,
+                                                            activeColor:
+                                                                const Color(
+                                                                  0xFF10B981,
+                                                                ),
+                                                            activeTrackColor:
+                                                                const Color(
+                                                                  0xFF10B981,
+                                                                ).withValues(
+                                                                  alpha: 0.2,
+                                                                ),
+                                                            inactiveThumbColor:
+                                                                Colors.white30,
+                                                            inactiveTrackColor:
+                                                                Colors.white10,
+                                                            onChanged: (val) {
+                                                              ref
+                                                                  .read(
+                                                                    financeProvider
+                                                                        .notifier,
+                                                                  )
+                                                                  .updatePreStockItem(
+                                                                    item.copyWith(
+                                                                      isOutOfStock:
+                                                                          !val,
+                                                                    ),
+                                                                  );
+                                                            },
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          if (item.notes.isNotEmpty) ...[
+                                            const SizedBox(height: 10),
+                                            Container(
+                                              width: double.infinity,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.03,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
                                                 'ໝາຍເຫດ: ${item.notes}',
-                                                style: const TextStyle(
-                                                  color: Colors.white54,
+                                                style: TextStyle(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.5),
                                                   fontSize: 11,
                                                   fontStyle: FontStyle.italic,
                                                 ),
                                               ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            currencyFormat.format(item.totalCost),
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                                  item.isOutOfStock
-                                                      ? const Color(0xFFEF4444)
-                                                      : const Color(0xFF10B981),
-                                              fontSize: 15,
-                                              decoration:
-                                                  item.isOutOfStock
-                                                      ? TextDecoration.lineThrough
-                                                      : null,
                                             ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                item.isOutOfStock
-                                                    ? 'ໝົດແລ້ວ'
-                                                    : 'ຍັງເຫຼືອ',
-                                                style: TextStyle(
-                                                  color:
-                                                      item.isOutOfStock
-                                                          ? const Color(
-                                                            0xFFEF4444,
-                                                          )
-                                                          : const Color(
-                                                            0xFF10B981,
-                                                          ),
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Transform.scale(
-                                                scale: 0.75,
-                                                child: Switch(
-                                                  value: !item.isOutOfStock,
-                                                  activeColor: const Color(
-                                                    0xFF10B981,
-                                                  ),
-                                                  activeTrackColor: const Color(
-                                                    0xFF10B981,
-                                                  ).withOpacity(0.2),
-                                                  inactiveThumbColor: const Color(
-                                                    0xFFEF4444,
-                                                  ),
-                                                  inactiveTrackColor: const Color(
-                                                    0xFFEF4444,
-                                                  ).withOpacity(0.2),
-                                                  materialTapTargetSize:
-                                                      MaterialTapTargetSize
-                                                          .shrinkWrap,
-                                                  onChanged: (val) {
-                                                    ref
-                                                        .read(
-                                                          financeProvider
-                                                              .notifier,
-                                                        )
-                                                        .togglePreStockItemStatus(
-                                                          item.id,
-                                                        );
-                                                  },
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                          ],
                                         ],
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -383,7 +610,9 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
   void initState() {
     super.initState();
     final defaultPortions = widget.type == 'syrup' ? 50 : 10;
-    _portionsController = TextEditingController(text: defaultPortions.toString());
+    _portionsController = TextEditingController(
+      text: defaultPortions.toString(),
+    );
   }
 
   @override
@@ -464,14 +693,16 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
               // Portions Field
               _buildTextFormField(
                 controller: _portionsController,
-                label: isKratom
-                    ? 'ຄາດຄະເນຈຳນວນຄັ້ງໃຊ້ງານ (ຕົວຢ່າງ: 10 ຄັ້ງ/ KG)'
-                    : 'ຄາດຄະເນຈຳນວນຄັ້ງໃຊ້ງານ (ຕົວຢ່າງ: 50 ຄັ້ງ/ ຖັງ)',
+                label:
+                    isKratom
+                        ? 'ຄາດຄະເນຈຳນວນຄັ້ງໃຊ້ງານ (ຕົວຢ່າງ: 10 ຄັ້ງ/ KG)'
+                        : 'ຄາດຄະເນຈຳນວນຄັ້ງໃຊ້ງານ (ຕົວຢ່າງ: 50 ຄັ້ງ/ ຖັງ)',
                 keyboardType: TextInputType.number,
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'ປ້ອນຈຳນວນຄັ້ງໃຊ້ງານ';
                   final parsed = int.tryParse(val);
-                  if (parsed == null || parsed <= 0) return 'ປ້ອນຈຳນວນທີ່ຖືກຕ້ອງ (> 0)';
+                  if (parsed == null || parsed <= 0)
+                    return 'ປ້ອນຈຳນວນທີ່ຖືກຕ້ອງ (> 0)';
                   return null;
                 },
               ),
@@ -627,10 +858,14 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.item.itemName);
-    final costStr = NumberFormat('#,###').format(widget.item.totalCost).replaceAll(',', '.');
+    final costStr = NumberFormat(
+      '#,###',
+    ).format(widget.item.totalCost).replaceAll(',', '.');
     _costController = TextEditingController(text: costStr);
     _notesController = TextEditingController(text: widget.item.notes);
-    _portionsController = TextEditingController(text: widget.item.portions.toString());
+    _portionsController = TextEditingController(
+      text: widget.item.portions.toString(),
+    );
     _buyerId = widget.item.buyerId;
   }
 
@@ -647,7 +882,8 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
   Widget build(BuildContext context) {
     final state = ref.watch(financeProvider);
     final isKratom = widget.item.type == 'kratom';
-    final accentColor = isKratom ? const Color(0xFFD97706) : const Color(0xFF8B5CF6);
+    final accentColor =
+        isKratom ? const Color(0xFFD97706) : const Color(0xFF8B5CF6);
 
     return Container(
       color: const Color(0xFF1E293B),
@@ -678,7 +914,11 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
               _buildTextFormField(
                 controller: _nameController,
                 label: 'ຊື່ສິນຄ້າ',
-                validator: (val) => val == null || val.trim().isEmpty ? 'ປ້ອນຊື່ສິນຄ້າ' : null,
+                validator:
+                    (val) =>
+                        val == null || val.trim().isEmpty
+                            ? 'ປ້ອນຊື່ສິນຄ້າ'
+                            : null,
               ),
               const SizedBox(height: 16),
 
@@ -706,7 +946,8 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'ປ້ອນຈຳນວນຄັ້ງໃຊ້ງານ';
                   final parsed = int.tryParse(val);
-                  if (parsed == null || parsed <= 0) return 'ປ້ອນຈຳນວນທີ່ຖືກຕ້ອງ (> 0)';
+                  if (parsed == null || parsed <= 0)
+                    return 'ປ້ອນຈຳນວນທີ່ຖືກຕ້ອງ (> 0)';
                   return null;
                 },
               ),
@@ -719,7 +960,10 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0F172A),
                   borderRadius: BorderRadius.circular(12),
@@ -730,13 +974,20 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
                     value: _buyerId,
                     dropdownColor: const Color(0xFF0F172A),
                     isExpanded: true,
-                    icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
-                    items: state.members.map((m) {
-                      return DropdownMenuItem<String>(
-                        value: m.id,
-                        child: Text(m.name, style: const TextStyle(color: Colors.white)),
-                      );
-                    }).toList(),
+                    icon: const Icon(
+                      Icons.arrow_drop_down,
+                      color: Colors.white70,
+                    ),
+                    items:
+                        state.members.map((m) {
+                          return DropdownMenuItem<String>(
+                            value: m.id,
+                            child: Text(
+                              m.name,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          );
+                        }).toList(),
                     onChanged: (val) {
                       setState(() {
                         _buyerId = val;
@@ -769,12 +1020,16 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
                     if (_formKey.currentState!.validate() && _buyerId != null) {
                       final updatedItem = widget.item.copyWith(
                         itemName: _nameController.text.trim(),
-                        totalCost: double.parse(_costController.text.replaceAll('.', '')),
+                        totalCost: double.parse(
+                          _costController.text.replaceAll('.', ''),
+                        ),
                         buyerId: _buyerId!,
                         notes: _notesController.text.trim(),
                         portions: int.parse(_portionsController.text.trim()),
                       );
-                      ref.read(financeProvider.notifier).updatePreStockItem(updatedItem);
+                      ref
+                          .read(financeProvider.notifier)
+                          .updatePreStockItem(updatedItem);
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('ອັບເດດຂໍ້ມູນສາງສຳເລັດ!')),

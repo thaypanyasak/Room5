@@ -180,65 +180,132 @@ class SettleUpScreen extends ConsumerWidget {
   void _showResetConfirmDialog(BuildContext context, WidgetRef ref) {
     final state = ref.read(financeProvider);
     final controller = TextEditingController(text: 'ງວດທີ ${state.periods.length + 1}');
+    bool keepRemainingStock = true;
 
     showDialog(
       context: context,
       builder: (BuildContext ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          title: const Text(
-            'ສະຫຼຸບ ແລະ ເລີ່ມງວດໃໝ່',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'ລະບົບຈະບັນທຶກລາຍຈ່າຍ ແລະ ສາງທັງໝົດໃນປັດຈຸບັນເຂົ້າໃນປະຫວັດງວດ ແລະ ລ້າງຂໍ້ມູນເພື່ອເລີ່ມຮອບໃໝ່.',
-                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1E293B),
+              title: const Text(
+                'ສະຫຼຸບ ແລະ ເລີ່ມງວດໃໝ່',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: InputDecoration(
-                  labelText: 'ຊື່ອງວດນີ້',
-                  labelStyle: const TextStyle(color: Colors.white60, fontSize: 12),
-                  filled: true,
-                  fillColor: const Color(0xFF0F172A),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ລະບົບຈະບັນທຶກລາຍຈ່າຍ ແລະ ສາງທັງໝົດໃນປັດຈຸບັນເຂົ້າໃນປະຫວັດງວດ ແລະ ລ້າງຂໍ້ມູນເພື່ອເລີ່ມຮອບໃໝ່.',
+                    style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF10B981)),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'ຊື່ອງວດນີ້',
+                      labelStyle: const TextStyle(color: Colors.white60, fontSize: 12),
+                      filled: true,
+                      fillColor: const Color(0xFF0F172A),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFF10B981)),
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'ການຈັດການສິນຄ້າຄົງເຫຼືອ:',
+                    style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => keepRemainingStock = false),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: !keepRemainingStock ? const Color(0xFF10B981).withOpacity(0.1) : const Color(0xFF0F172A),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: !keepRemainingStock ? const Color(0xFF10B981) : Colors.white10,
+                              ),
+                            ),
+                            child: Text(
+                              '1. ລ້າງສາງທັງໝົດ',
+                              style: TextStyle(
+                                color: !keepRemainingStock ? const Color(0xFF10B981) : Colors.white38,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => keepRemainingStock = true),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: keepRemainingStock ? const Color(0xFF10B981).withOpacity(0.1) : const Color(0xFF0F172A),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: keepRemainingStock ? const Color(0xFF10B981) : Colors.white10,
+                              ),
+                            ),
+                            child: Text(
+                              '2. ເກັບຂອງທີ່ເຫຼືອ',
+                              style: TextStyle(
+                                color: keepRemainingStock ? const Color(0xFF10B981) : Colors.white38,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('ຍົກເລີກ', style: TextStyle(color: Colors.white38)),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('ຍົກເລີກ', style: TextStyle(color: Colors.white38)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
-              onPressed: () async {
-                final name = controller.text.trim();
-                if (name.isEmpty) return;
-                await ref.read(financeProvider.notifier).settleAndStartNewPeriod(name);
-                Navigator.pop(ctx); // Close Dialog
-                Navigator.pop(context); // Go back to Dashboard
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('ເລີ່ມງວດໃໝ່ "$name" ແລ້ວ!')),
-                );
-              },
-              child: const Text('ຕົກລົງ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+                  onPressed: () async {
+                    final name = controller.text.trim();
+                    if (name.isEmpty) return;
+                    await ref.read(financeProvider.notifier).settleAndStartNewPeriod(
+                      periodName: name,
+                      keepRemainingStock: keepRemainingStock,
+                    );
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (context.mounted) Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('ເລີ່ມງວດໃໝ່ "$name" ແລ້ວ!')),
+                    );
+                  },
+                  child: const Text('ຕົກລົງ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
         );
       },
     );

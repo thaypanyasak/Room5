@@ -1,6 +1,6 @@
 {
-    "name": "room5_share",
-    "short_name": "room5_share",
+    "name": "Room 5",
+    "short_name": "Room 5",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
