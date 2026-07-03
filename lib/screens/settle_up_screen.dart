@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -351,27 +352,47 @@ class SettleUpScreen extends ConsumerWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      mockQrUrl,
-                      width: 200,
-                      height: 200,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 200,
-                          height: 200,
-                          color: const Color(0xFF0F172A),
-                          child: const Icon(Icons.qr_code_2_rounded, size: 80, color: Colors.white24),
-                        );
-                      },
-                    ),
+                    child: transfer.to.qrPath != null && transfer.to.qrPath!.isNotEmpty
+                        ? Image.file(
+                            File(transfer.to.qrPath!),
+                            width: 200,
+                            height: 200,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 200,
+                                height: 200,
+                                color: const Color(0xFF0F172A),
+                                child: const Icon(Icons.broken_image_rounded, size: 60, color: Colors.black26),
+                              );
+                            },
+                          )
+                        : Image.network(
+                            mockQrUrl,
+                            width: 200,
+                            height: 200,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 200,
+                                height: 200,
+                                color: const Color(0xFF0F172A),
+                                child: const Icon(Icons.qr_code_2_rounded, size: 80, color: Colors.white24),
+                              );
+                            },
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
                 
                 // Money Transfer Details
                 _qrDetailRow('ຜູ້ຮັບ:', transfer.to.name),
-                _qrDetailRow('ເລກບັນຊີ MOCK:', 'BCEL Bank - 0909090909'),
+                _qrDetailRow(
+                  'ປະເພດ QR:',
+                  transfer.to.qrPath != null && transfer.to.qrPath!.isNotEmpty
+                      ? 'QR ສ່ວນຕົວຂອງ ${transfer.to.name}'
+                      : 'BCEL Bank - 0909090909 (MOCK)',
+                ),
                 _qrDetailRow('ຈຳນວນເງິນໂອນ:', format.format(transfer.amount), valueColor: const Color(0xFF10B981)),
                 const SizedBox(height: 24),
                 

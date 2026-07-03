@@ -12,6 +12,8 @@ class Expense {
   final double? iceAmount;
   final String? kratomStockId;
   final String? syrupStockId;
+  final int? kratomPortions;
+  final int? syrupPortions;
 
   // Who paid how much: {memberId: amountPaid}
   final Map<String, double> payers;
@@ -29,6 +31,8 @@ class Expense {
     this.iceAmount,
     this.kratomStockId,
     this.syrupStockId,
+    this.kratomPortions,
+    this.syrupPortions,
     required this.payers,
     required this.participantIds,
   });
@@ -43,6 +47,8 @@ class Expense {
         'iceAmount': iceAmount,
         'kratomStockId': kratomStockId,
         'syrupStockId': syrupStockId,
+        'kratomPortions': kratomPortions,
+        'syrupPortions': syrupPortions,
         'payers': payers,
         'participantIds': participantIds,
       };
@@ -60,6 +66,8 @@ class Expense {
         iceAmount: json['iceAmount'] != null ? (json['iceAmount'] as num).toDouble() : null,
         kratomStockId: json['kratomStockId'] as String?,
         syrupStockId: json['syrupStockId'] as String?,
+        kratomPortions: json['kratomPortions'] as int?,
+        syrupPortions: json['syrupPortions'] as int?,
         payers: (json['payers'] as Map<String, dynamic>).map(
           (k, v) => MapEntry(k, (v as num).toDouble()),
         ),
@@ -76,6 +84,8 @@ class Expense {
     double? iceAmount,
     String? kratomStockId,
     String? syrupStockId,
+    int? kratomPortions,
+    int? syrupPortions,
     Map<String, double>? payers,
     List<String>? participantIds,
   }) {
@@ -89,6 +99,8 @@ class Expense {
       iceAmount: iceAmount ?? this.iceAmount,
       kratomStockId: kratomStockId ?? this.kratomStockId,
       syrupStockId: syrupStockId ?? this.syrupStockId,
+      kratomPortions: kratomPortions ?? this.kratomPortions,
+      syrupPortions: syrupPortions ?? this.syrupPortions,
       payers: payers ?? this.payers,
       participantIds: participantIds ?? this.participantIds,
     );

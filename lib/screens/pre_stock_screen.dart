@@ -36,12 +36,10 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
     );
 
     final isKratom = widget.type == 'kratom';
-    final accentColor =
-        isKratom ? const Color(0xFFD97706) : const Color(0xFF8B5CF6);
-    final gradientColors =
-        isKratom
-            ? [const Color(0xFF78350F), const Color(0xFF451A03)]
-            : [const Color(0xFF5B21B6), const Color(0xFF3B0764)];
+    final accentColor = isKratom ? const Color(0xFF10B981) : const Color(0xFFF43F5E);
+    final gradientColors = isKratom
+        ? [const Color(0xFF064E3B), const Color(0xFF022C22)]
+        : [const Color(0xFF881337), const Color(0xFF4C0519)];
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -53,7 +51,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
             color: Colors.white,
           ),
         ),
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: isKratom ? const Color(0xFF064E3B) : const Color(0xFF881337),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
@@ -197,9 +195,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                                             ? Colors.redAccent.withValues(
                                               alpha: 0.15,
                                             )
-                                            : const Color(
-                                              0xFF10B981,
-                                            ).withValues(alpha: 0.25),
+                                            : accentColor.withValues(alpha: 0.25),
                                     width: 1.5,
                                   ),
                                   boxShadow: [
@@ -261,9 +257,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                                                               .withValues(
                                                                 alpha: 0.1,
                                                               )
-                                                          : const Color(
-                                                            0xFF10B981,
-                                                          ).withValues(
+                                                          : accentColor.withValues(
                                                             alpha: 0.1,
                                                           ),
                                                   borderRadius:
@@ -280,9 +274,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                                                             ? const Color(
                                                               0xFFEF4444,
                                                             )
-                                                            : const Color(
-                                                              0xFF10B981,
-                                                            ),
+                                                            : accentColor,
                                                     fontSize: 14,
                                                   ),
                                                 ),
@@ -294,22 +286,17 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                                           // Portions Progress Bar
                                           Builder(
                                             builder: (context) {
-                                              final usedCount =
-                                                  state.expenses
-                                                      .where(
-                                                        (e) =>
-                                                            (item.type ==
-                                                                    'kratom' &&
-                                                                e.kratomStockId ==
-                                                                    item.id) ||
-                                                            (item.type ==
-                                                                    'syrup' &&
-                                                                e.syrupStockId ==
-                                                                    item.id),
-                                                      )
-                                                      .length;
-                                              final remaining =
-                                                  item.portions - usedCount;
+                                              final usedCount = state.expenses.fold<int>(0, (sum, e) {
+                                                 if (item.type == 'kratom' && e.kratomStockId == item.id) {
+                                                   return sum + (e.kratomPortions ?? 1);
+                                                 }
+                                                 if (item.type == 'syrup' && e.syrupStockId == item.id) {
+                                                   return sum + (e.syrupPortions ?? 1);
+                                                 }
+                                                 return sum;
+                                               });
+                                               final remaining =
+                                                   item.startingPortions - usedCount;
                                               final progress =
                                                   item.portions > 0
                                                       ? (remaining /
@@ -346,9 +333,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                                                                   ? const Color(
                                                                     0xFFEF4444,
                                                                   )
-                                                                  : const Color(
-                                                                    0xFF10B981,
-                                                                  ),
+                                                                  : accentColor,
                                                           fontWeight:
                                                               FontWeight.bold,
                                                           fontSize: 12,
@@ -380,9 +365,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                                                                 ? const Color(
                                                                   0xFFEF4444,
                                                                 )
-                                                                : const Color(
-                                                                  0xFF10B981,
-                                                                ),
+                                                                : accentColor,
                                                           ),
                                                     ),
                                                   ),
@@ -458,9 +441,7 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                                                                   ? const Color(
                                                                     0xFFEF4444,
                                                                   )
-                                                                  : const Color(
-                                                                    0xFF10B981,
-                                                                  ),
+                                                                  : accentColor,
                                                           fontSize: 11,
                                                           fontWeight:
                                                               FontWeight.bold,
@@ -476,14 +457,9 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
                                                             value:
                                                                 !item
                                                                     .isOutOfStock,
-                                                            activeColor:
-                                                                const Color(
-                                                                  0xFF10B981,
-                                                                ),
+                                                            activeColor: accentColor,
                                                             activeTrackColor:
-                                                                const Color(
-                                                                  0xFF10B981,
-                                                                ).withValues(
+                                                                accentColor.withValues(
                                                                   alpha: 0.2,
                                                                 ),
                                                             inactiveThumbColor:
@@ -604,7 +580,9 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
   final _costController = TextEditingController();
   final _notesController = TextEditingController();
   late final TextEditingController _portionsController;
+  late final TextEditingController _remainingPortionsController;
   String? _buyerId;
+  bool _manuallyEditedRemaining = false;
 
   @override
   void initState() {
@@ -613,6 +591,21 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
     _portionsController = TextEditingController(
       text: defaultPortions.toString(),
     );
+    _remainingPortionsController = TextEditingController(
+      text: defaultPortions.toString(),
+    );
+
+    _portionsController.addListener(() {
+      if (!_manuallyEditedRemaining) {
+        _remainingPortionsController.text = _portionsController.text;
+      }
+    });
+
+    _remainingPortionsController.addListener(() {
+      if (_remainingPortionsController.text != _portionsController.text) {
+        _manuallyEditedRemaining = true;
+      }
+    });
   }
 
   @override
@@ -621,6 +614,7 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
     _costController.dispose();
     _notesController.dispose();
     _portionsController.dispose();
+    _remainingPortionsController.dispose();
     super.dispose();
   }
 
@@ -632,16 +626,18 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
     }
 
     final isKratom = widget.type == 'kratom';
-    final accentColor =
-        isKratom ? const Color(0xFFD97706) : const Color(0xFF8B5CF6);
+    final accentColor = isKratom ? const Color(0xFF10B981) : const Color(0xFFF43F5E);
 
     return Container(
-      color: const Color(0xFF1E293B),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E293B),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
         left: 20,
         right: 20,
-        top: 24,
+        top: 16,
       ),
       child: Form(
         key: _formKey,
@@ -650,13 +646,81 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                isKratom ? 'ເພີ່ມ ທ້ອມ ເຂົ້າສາງ' : 'ເພີ່ມນ້ຳຢາ ເຂົ້າສາງ',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              // Drag Indicator
+              Center(
+                child: Container(
+                  width: 48,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
                 ),
+              ),
+              const SizedBox(height: 16),
+              // Header title with close icon
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: accentColor.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            isKratom ? Icons.local_cafe : Icons.water_drop,
+                            color: accentColor,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isKratom ? 'ເພີ່ມ ທ້ອມ ເຂົ້າສາງ' : 'ເພີ່ມນ້ຳຢາ ເຂົ້າສາງ',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                isKratom
+                                    ? 'ເພີ່ມ ແລະ ບັນທຶກຂໍ້ມູນ ທ້ອມ ເຂົ້າໃນສາງ'
+                                    : 'ເພີ່ມ ແລະ ບັນທຶກຂໍ້ມູນນ້ຳຢາ ເຂົ້າໃນສາງ',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white30, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Divider(
+                color: Colors.white.withValues(alpha: 0.1),
+                height: 1,
+                thickness: 1,
               ),
               const SizedBox(height: 20),
 
@@ -667,6 +731,9 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
                     isKratom
                         ? 'ຊື່ ທ້ອມ (ຕົວຢ່າງ: ທ້ອມ 1 ຍົກ, ຜົງ ທ້ອມ 3kg...)'
                         : 'ຊື່ນ້ຳຢາ (ຕົວຢ່າງ: ນ້ຳຢາລົດສະຕໍເບີຣີ, Syrup ຫວານ...)',
+                hintText: isKratom ? 'ປ້ອນຊື່ ທ້ອມ...' : 'ປ້ອນຊື່ນ້ຳຢາ...',
+                prefixIcon: isKratom ? Icons.shopping_bag_outlined : Icons.water_drop_outlined,
+                accentColor: accentColor,
                 validator:
                     (val) =>
                         val == null || val.trim().isEmpty
@@ -679,67 +746,123 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
               _buildTextFormField(
                 controller: _costController,
                 label: 'ລາຄາຊື້ (₭)',
+                hintText: 'ປ້ອນລາຄາຊື້...',
+                prefixIcon: Icons.payments_outlined,
+                accentColor: accentColor,
                 keyboardType: TextInputType.number,
                 inputFormatters: [CurrencyInputFormatter()],
                 validator: (val) {
-                  if (val == null || val.isEmpty) return 'ປ້ອນລາຄາຊື້';
-                  if (double.tryParse(val.replaceAll('.', '')) == null)
+                  if (val == null || val.isEmpty) {
+                    return 'ປ້ອນລາຄາຊື້';
+                  }
+                  if (double.tryParse(val.replaceAll('.', '')) == null) {
                     return 'ປ້ອນຕົວເລກໃຫ້ຖືກຕ້ອງ';
+                  }
                   return null;
                 },
               ),
               const SizedBox(height: 16),
 
-              // Portions Field
-              _buildTextFormField(
-                controller: _portionsController,
-                label:
-                    isKratom
-                        ? 'ຄາດຄະເນຈຳນວນຄັ້ງໃຊ້ງານ (ຕົວຢ່າງ: 10 ຄັ້ງ/ KG)'
-                        : 'ຄາດຄະເນຈຳນວນຄັ້ງໃຊ້ງານ (ຕົວຢ່າງ: 50 ຄັ້ງ/ ຖັງ)',
-                keyboardType: TextInputType.number,
-                validator: (val) {
-                  if (val == null || val.isEmpty) return 'ປ້ອນຈຳນວນຄັ້ງໃຊ້ງານ';
-                  final parsed = int.tryParse(val);
-                  if (parsed == null || parsed <= 0)
-                    return 'ປ້ອນຈຳນວນທີ່ຖືກຕ້ອງ (> 0)';
-                  return null;
-                },
+              // Portions & Remaining Portions Field in a Row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildTextFormField(
+                      controller: _portionsController,
+                      label: isKratom
+                          ? 'ຄາດຄະເນໃຊ້ງານ (ຄັ້ງ/KG)'
+                          : 'ຄາດຄະເນໃຊ້ງານ (ຄັ້ງ/ຖັງ)',
+                      hintText: 'ປ້ອນຈຳນວນຄັ້ງ...',
+                      prefixIcon: Icons.calculate_outlined,
+                      accentColor: accentColor,
+                      keyboardType: TextInputType.number,
+                      validator: (val) {
+                        if (val == null || val.isEmpty) {
+                          return 'ປ້ອນຈຳນວນຄັ້ງ';
+                        }
+                        final parsed = int.tryParse(val);
+                        if (parsed == null || parsed <= 0) {
+                          return 'ປ້ອນຕົວເລກ (> 0)';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildTextFormField(
+                      controller: _remainingPortionsController,
+                      label: 'ຈຳນວນຄັ້ງທີ່ຍັງເຫຼືອ',
+                      hintText: 'ປ້ອນຈຳນວນຄັ້ງທີ່ຍັງເຫຼືອ...',
+                      prefixIcon: Icons.hourglass_empty,
+                      accentColor: accentColor,
+                      keyboardType: TextInputType.number,
+                      validator: (val) {
+                        if (val == null || val.isEmpty) return 'ປ້ອນຈຳນວນຄັ້ງທີ່ຍັງເຫຼືອ';
+                        final remaining = int.tryParse(val);
+                        if (remaining == null || remaining < 0) {
+                          return 'ປ້ອນຕົວເລກ (>= 0)';
+                        }
+                        final total = int.tryParse(_portionsController.text);
+                        if (total != null && remaining > total) {
+                          return 'ບໍ່ຄວນຫຼາຍກວ່າທັງໝົດ';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
               // Buyer Selector
-              const Text(
-                'ໃຜເປັນຄົນຊື້?',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline,
+                    color: Colors.white30,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ໃຜເປັນຄົນຊື້?',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white10),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _buyerId,
+                    hint: Text(
+                      'ເລືອກຜູ້ຊື້',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.24),
+                        fontSize: 14,
+                      ),
+                    ),
                     dropdownColor: const Color(0xFF0F172A),
                     isExpanded: true,
-                    icon: const Icon(
-                      Icons.arrow_drop_down,
-                      color: Colors.white70,
-                    ),
+                    icon: Icon(Icons.keyboard_arrow_down, color: accentColor, size: 20),
                     items:
                         state.members.map((m) {
                           return DropdownMenuItem<String>(
                             value: m.id,
                             child: Text(
                               m.name,
-                              style: const TextStyle(color: Colors.white),
+                              style: const TextStyle(color: Colors.white, fontSize: 14),
                             ),
                           );
                         }).toList(),
@@ -757,18 +880,30 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
               _buildTextFormField(
                 controller: _notesController,
                 label: 'ໝາຍເຫດ (ທາງເລືອກ)',
+                hintText: 'ປ້ອນໝາຍເຫດ...',
+                prefixIcon: Icons.description_outlined,
+                accentColor: accentColor,
               ),
               const SizedBox(height: 24),
 
               // Submit Button
-              SizedBox(
+              Container(
                 width: double.infinity,
                 height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: isKratom 
+                      ? [const Color(0xFF059669), const Color(0xFF10B981)]
+                      : [const Color(0xFFE11D48), const Color(0xFFF43F5E)],
+                  ),
+                ),
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: accentColor,
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   onPressed: () {
@@ -784,13 +919,14 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
                         notes: _notesController.text.trim(),
                         type: widget.type,
                         portions: int.parse(_portionsController.text.trim()),
+                        initialRemainingPortions: int.parse(_remainingPortionsController.text.trim()),
                       );
                       ref.read(financeProvider.notifier).addPreStockItem(item);
                       Navigator.pop(context);
                     }
                   },
                   child: Text(
-                    isKratom ? 'ບັນທຶກເຂົ້າສາງ ທ້ອມ' : 'ບັນທຶກເຂົ້າសາງນ້ຳຢາ',
+                    isKratom ? 'ບັນທຶກເຂົ້າສາງ ທ້ອມ' : 'ບັນທຶກເຂົ້າສາງນ້ຳຢາ',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -809,30 +945,69 @@ class _AddPreStockSheetState extends ConsumerState<_AddPreStockSheet> {
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String label,
+    required IconData prefixIcon,
+    required Color accentColor,
+    String? hintText,
     TextInputType keyboardType = TextInputType.text,
     FormFieldValidator<String>? validator,
     List<TextInputFormatter>? inputFormatters,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      style: const TextStyle(color: Colors.white),
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white60, fontSize: 14),
-        filled: true,
-        fillColor: const Color(0xFF0F172A),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              prefixIcon,
+              color: accentColor,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD97706)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          style: const TextStyle(color: Colors.white, fontSize: 15),
+          validator: validator,
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: TextStyle(
+              color: Colors.white.withValues(alpha: 0.24),
+              fontSize: 14,
+            ),
+            filled: true,
+            fillColor: const Color(0xFF0F172A),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.white10),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: accentColor, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -852,6 +1027,7 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
   late final TextEditingController _costController;
   late final TextEditingController _notesController;
   late final TextEditingController _portionsController;
+  late final TextEditingController _remainingPortionsController;
   String? _buyerId;
 
   @override
@@ -867,6 +1043,21 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
       text: widget.item.portions.toString(),
     );
     _buyerId = widget.item.buyerId;
+
+    final state = ref.read(financeProvider);
+    final usedCount = state.expenses.fold<int>(0, (sum, e) {
+      if (widget.item.type == 'kratom' && e.kratomStockId == widget.item.id) {
+        return sum + (e.kratomPortions ?? 1);
+      }
+      if (widget.item.type == 'syrup' && e.syrupStockId == widget.item.id) {
+        return sum + (e.syrupPortions ?? 1);
+      }
+      return sum;
+    });
+    final currentRemaining = widget.item.startingPortions - usedCount;
+    _remainingPortionsController = TextEditingController(
+      text: currentRemaining.toString(),
+    );
   }
 
   @override
@@ -875,6 +1066,7 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
     _costController.dispose();
     _notesController.dispose();
     _portionsController.dispose();
+    _remainingPortionsController.dispose();
     super.dispose();
   }
 
@@ -882,16 +1074,18 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
   Widget build(BuildContext context) {
     final state = ref.watch(financeProvider);
     final isKratom = widget.item.type == 'kratom';
-    final accentColor =
-        isKratom ? const Color(0xFFD97706) : const Color(0xFF8B5CF6);
+    final accentColor = isKratom ? const Color(0xFF10B981) : const Color(0xFFF43F5E);
 
     return Container(
-      color: const Color(0xFF1E293B),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E293B),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
         left: 20,
         right: 20,
-        top: 24,
+        top: 16,
       ),
       child: Form(
         key: _formKey,
@@ -900,13 +1094,81 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                isKratom ? 'ແກ້ໄຂຂໍ້ມູນ ທ້ອມ' : 'ແກ້ໄຂຂໍ້ມູນນ້ຳຢາ',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              // Drag Indicator
+              Center(
+                child: Container(
+                  width: 48,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
                 ),
+              ),
+              const SizedBox(height: 16),
+              // Header title with close icon
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: accentColor.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            isKratom ? Icons.local_cafe : Icons.water_drop,
+                            color: accentColor,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isKratom ? 'ແກ້ໄຂຂໍ້ມູນ ທ້ອມ' : 'ແກ້ໄຂຂໍ້ມູນນ້ຳຢາ',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                isKratom
+                                    ? 'ແກ້ໄຂຂໍ້ມູນ ທ້ອມ ທີ່ເລືອກໃນສາງ'
+                                    : 'ແກ້ໄຂຂໍ້ມູນນ້ຳຢາ ທີ່ເລືອກໃນສາງ',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white30, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Divider(
+                color: Colors.white.withValues(alpha: 0.1),
+                height: 1,
+                thickness: 1,
               ),
               const SizedBox(height: 20),
 
@@ -914,6 +1176,9 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
               _buildTextFormField(
                 controller: _nameController,
                 label: 'ຊື່ສິນຄ້າ',
+                hintText: isKratom ? 'ປ້ອນຊື່ ທ້ອມ...' : 'ປ້ອນຊື່ນ້ຳຢາ...',
+                prefixIcon: isKratom ? Icons.shopping_bag_outlined : Icons.water_drop_outlined,
+                accentColor: accentColor,
                 validator:
                     (val) =>
                         val == null || val.trim().isEmpty
@@ -926,6 +1191,9 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
               _buildTextFormField(
                 controller: _costController,
                 label: 'ລາຄາຊື້ (₭)',
+                hintText: 'ປ້ອນລາຄາຊື້...',
+                prefixIcon: Icons.payments_outlined,
+                accentColor: accentColor,
                 keyboardType: TextInputType.number,
                 inputFormatters: [CurrencyInputFormatter()],
                 validator: (val) {
@@ -938,53 +1206,116 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
               ),
               const SizedBox(height: 16),
 
-              // Portions Field
-              _buildTextFormField(
-                controller: _portionsController,
-                label: 'ຄາດຄະເນຈຳນວນຄັ້ງໃຊ້ງານ (ຄັ້ງ)',
-                keyboardType: TextInputType.number,
-                validator: (val) {
-                  if (val == null || val.isEmpty) return 'ປ້ອນຈຳນວນຄັ້ງໃຊ້ງານ';
-                  final parsed = int.tryParse(val);
-                  if (parsed == null || parsed <= 0)
-                    return 'ປ້ອນຈຳນວນທີ່ຖືກຕ້ອງ (> 0)';
-                  return null;
-                },
+              // Portions & Remaining Portions Field in a Row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildTextFormField(
+                      controller: _portionsController,
+                      label: 'ຄາດຄະເນໃຊ້ງານ (ຄັ້ງ)',
+                      hintText: 'ປ້ອນຈຳນວນຄັ້ງ...',
+                      prefixIcon: Icons.calculate_outlined,
+                      accentColor: accentColor,
+                      keyboardType: TextInputType.number,
+                      validator: (val) {
+                        if (val == null || val.isEmpty) {
+                          return 'ປ້ອນຈຳນວນຄັ້ງ';
+                        }
+                        final parsed = int.tryParse(val);
+                        if (parsed == null || parsed <= 0) {
+                          return 'ປ້ອນຕົວເລກ (> 0)';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildTextFormField(
+                      controller: _remainingPortionsController,
+                      label: 'ຈຳນວນຄັ້ງທີ່ຍັງເຫຼືອ',
+                      hintText: 'ປ້ອນຈຳນວນຄັ້ງທີ່ຍັງເຫຼືອ...',
+                      prefixIcon: Icons.hourglass_empty,
+                      accentColor: accentColor,
+                      keyboardType: TextInputType.number,
+                      validator: (val) {
+                        if (val == null || val.isEmpty) return 'ປ້ອນຈຳນວນຄັ້ງທີ່ຍັງເຫຼືອ';
+                        final remaining = int.tryParse(val);
+                        if (remaining == null || remaining < 0) {
+                          return 'ປ້ອນຕົວເລກ (>= 0)';
+                        }
+                        final total = int.tryParse(_portionsController.text);
+                        if (total != null) {
+                          final state = ref.read(financeProvider);
+                          final usedCount = state.expenses.fold<int>(0, (sum, e) {
+                            if (widget.item.type == 'kratom' && e.kratomStockId == widget.item.id) {
+                              return sum + (e.kratomPortions ?? 1);
+                            }
+                            if (widget.item.type == 'syrup' && e.syrupStockId == widget.item.id) {
+                              return sum + (e.syrupPortions ?? 1);
+                            }
+                            return sum;
+                          });
+                          if (remaining + usedCount > total) {
+                            return 'ບໍ່ຄວນ > ທັງໝົດ ($total)';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
               // Buyer Selector
-              const Text(
-                'ໃຜເປັນຄົນຊື້?',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline,
+                    color: Colors.white30,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ໃຜເປັນຄົນຊື້?',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white10),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _buyerId,
+                    hint: Text(
+                      'ເລືອກຜູ້ຊື້',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.24),
+                        fontSize: 14,
+                      ),
+                    ),
                     dropdownColor: const Color(0xFF0F172A),
                     isExpanded: true,
-                    icon: const Icon(
-                      Icons.arrow_drop_down,
-                      color: Colors.white70,
-                    ),
+                    icon: Icon(Icons.keyboard_arrow_down, color: accentColor, size: 20),
                     items:
                         state.members.map((m) {
                           return DropdownMenuItem<String>(
                             value: m.id,
                             child: Text(
                               m.name,
-                              style: const TextStyle(color: Colors.white),
+                              style: const TextStyle(color: Colors.white, fontSize: 14),
                             ),
                           );
                         }).toList(),
@@ -1002,22 +1333,46 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
               _buildTextFormField(
                 controller: _notesController,
                 label: 'ໝາຍເຫດ (ທາງເລືອກ)',
+                hintText: 'ປ້ອນໝາຍເຫດ...',
+                prefixIcon: Icons.description_outlined,
+                accentColor: accentColor,
               ),
               const SizedBox(height: 24),
 
               // Submit Button
-              SizedBox(
+              Container(
                 width: double.infinity,
                 height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: isKratom 
+                      ? [const Color(0xFF059669), const Color(0xFF10B981)]
+                      : [const Color(0xFFE11D48), const Color(0xFFF43F5E)],
+                  ),
+                ),
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: accentColor,
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   onPressed: () {
                     if (_formKey.currentState!.validate() && _buyerId != null) {
+                      final state = ref.read(financeProvider);
+                      final usedCount = state.expenses.fold<int>(0, (sum, e) {
+                        if (widget.item.type == 'kratom' && e.kratomStockId == widget.item.id) {
+                          return sum + (e.kratomPortions ?? 1);
+                        }
+                        if (widget.item.type == 'syrup' && e.syrupStockId == widget.item.id) {
+                          return sum + (e.syrupPortions ?? 1);
+                        }
+                        return sum;
+                      });
+                      final enteredRemaining = int.parse(_remainingPortionsController.text.trim());
+
                       final updatedItem = widget.item.copyWith(
                         itemName: _nameController.text.trim(),
                         totalCost: double.parse(
@@ -1026,6 +1381,7 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
                         buyerId: _buyerId!,
                         notes: _notesController.text.trim(),
                         portions: int.parse(_portionsController.text.trim()),
+                        initialRemainingPortions: enteredRemaining + usedCount,
                       );
                       ref
                           .read(financeProvider.notifier)
@@ -1056,30 +1412,69 @@ class _EditPreStockSheetState extends ConsumerState<_EditPreStockSheet> {
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String label,
+    required IconData prefixIcon,
+    required Color accentColor,
+    String? hintText,
     TextInputType keyboardType = TextInputType.text,
     FormFieldValidator<String>? validator,
     List<TextInputFormatter>? inputFormatters,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      style: const TextStyle(color: Colors.white),
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white60, fontSize: 14),
-        filled: true,
-        fillColor: const Color(0xFF0F172A),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              prefixIcon,
+              color: accentColor,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD97706)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          style: const TextStyle(color: Colors.white, fontSize: 15),
+          validator: validator,
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: TextStyle(
+              color: Colors.white.withValues(alpha: 0.24),
+              fontSize: 14,
+            ),
+            filled: true,
+            fillColor: const Color(0xFF0F172A),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.white10),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: accentColor, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

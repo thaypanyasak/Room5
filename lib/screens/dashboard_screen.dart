@@ -635,6 +635,7 @@ class _ExpenseDetailModalContent extends StatefulWidget {
 class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> {
   bool _isEditing = false;
   late List<String> _editedParticipants;
+  late String? _editedPayerId;
   late TextEditingController _titleController;
   late TextEditingController _iceController;
 
@@ -642,6 +643,7 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
   void initState() {
     super.initState();
     _editedParticipants = List.from(widget.expense.participantIds);
+    _editedPayerId = widget.expense.payers.isNotEmpty ? widget.expense.payers.keys.first : null;
     _titleController = TextEditingController(text: widget.expense.title);
     
     final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
@@ -760,6 +762,7 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                     setState(() {
                       _isEditing = false;
                       _editedParticipants = List.from(widget.expense.participantIds);
+                      _editedPayerId = widget.expense.payers.isNotEmpty ? widget.expense.payers.keys.first : null;
                       _titleController.text = widget.expense.title;
                       final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
                       final initialCost = widget.expense.category == ExpenseCategory.kratom
@@ -801,6 +804,45 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                 ),
                 focusedBorder: const UnderlineInputBorder(
                   borderSide: BorderSide(color: Color(0xFF10B981)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'ໃຜເປັນຄົນຈ່າຍ?',
+              style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _editedPayerId,
+                  dropdownColor: const Color(0xFF0F172A),
+                  isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF10B981), size: 20),
+                  items: widget.state.members.map((m) {
+                    return DropdownMenuItem<String>(
+                      value: m.id,
+                      child: Row(
+                        children: [
+                          MemberAvatar(member: m, radius: 12),
+                          const SizedBox(width: 8),
+                          Text(m.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setState(() {
+                      _editedPayerId = val;
+                    });
+                  },
                 ),
               ),
             ),
@@ -884,6 +926,7 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                     setState(() {
                       _isEditing = false;
                       _editedParticipants = List.from(widget.expense.participantIds);
+                      _editedPayerId = widget.expense.payers.isNotEmpty ? widget.expense.payers.keys.first : null;
                       _titleController.text = widget.expense.title;
                       final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
                       final initialCost = widget.expense.category == ExpenseCategory.kratom
@@ -909,14 +952,18 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                       );
                       return;
                     }
+                    if (_editedPayerId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('ກະລຸນາເລືອກຄົນຈ່າຍ!')),
+                      );
+                      return;
+                    }
 
                     final newAmount = double.tryParse(_iceController.text.replaceAll('.', '')) ?? 0.0;
 
-                    final Map<String, double> updatedPayers = {};
-                    if (widget.expense.payers.isNotEmpty) {
-                      final singlePayerId = widget.expense.payers.keys.first;
-                      updatedPayers[singlePayerId] = newAmount;
-                    }
+                    final Map<String, double> updatedPayers = {
+                      _editedPayerId!: newAmount,
+                    };
 
                     final updatedExpense = widget.expense.copyWith(
                       title: _titleController.text.trim(),

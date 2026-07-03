@@ -79,11 +79,24 @@ class FinanceNotifier extends Notifier<FinanceState> {
         Member(id: 'Ley', name: 'Ley', avatarUrl: 'https://api.dicebear.com/7.x/lorelei/png?seed=Ley'),
         Member(id: 'Bualy', name: 'Bualy', avatarUrl: 'https://api.dicebear.com/7.x/fun-emoji/png?seed=Bualy'),
         Member(id: 'Thui', name: 'Thui', avatarUrl: 'https://api.dicebear.com/7.x/bottts/png?seed=Thui'),
+        Member(id: 'Mei', name: 'Mei', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=Mei'),
       ];
       await _storage.saveMembers(members);
     } else {
       // Migrate old default members' avatars to new styles
       bool updated = false;
+      
+      // Ensure 'Mei' is in the list
+      final hasMei = members.any((m) => m.id == 'Mei' || m.name.toLowerCase() == 'mei');
+      if (!hasMei) {
+        members.add(Member(
+          id: 'Mei',
+          name: 'Mei',
+          avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=Mei',
+        ));
+        updated = true;
+      }
+
       members = members.map((m) {
         if (m.id == 'Thay' && m.avatarUrl.contains('avataaars')) {
           updated = true;
@@ -142,6 +155,17 @@ class FinanceNotifier extends Notifier<FinanceState> {
     final updatedList = state.members.map((m) {
       if (m.id == memberId) {
         return m.copyWith(avatarUrl: avatarUrl);
+      }
+      return m;
+    }).toList();
+    state = state.copyWith(members: updatedList);
+    await _storage.saveMembers(updatedList);
+  }
+
+  Future<void> updateMemberQR(String memberId, String? qrPath) async {
+    final updatedList = state.members.map((m) {
+      if (m.id == memberId) {
+        return m.copyWith(qrPath: qrPath);
       }
       return m;
     }).toList();
@@ -248,9 +272,10 @@ class FinanceNotifier extends Notifier<FinanceState> {
           );
           if (preItem.id.isNotEmpty && preItem.totalCost > 0) {
             final portionCost = preItem.totalCost / (preItem.portions > 0 ? preItem.portions : 1);
+            final consumedCost = portionCost * (expense.kratomPortions ?? 1);
             
             // Debit the session participants
-            final participantShare = portionCost / expense.participantIds.length;
+            final participantShare = consumedCost / expense.participantIds.length;
             for (var partId in expense.participantIds) {
               if (balances.containsKey(partId)) {
                 balances[partId] = balances[partId]! - participantShare;
@@ -260,7 +285,7 @@ class FinanceNotifier extends Notifier<FinanceState> {
             // Credit the buyer of this stock item for this consumed portion!
             final buyerId = preItem.buyerId;
             if (balances.containsKey(buyerId)) {
-              balances[buyerId] = balances[buyerId]! + portionCost;
+              balances[buyerId] = balances[buyerId]! + consumedCost;
             }
           }
         }
@@ -273,9 +298,10 @@ class FinanceNotifier extends Notifier<FinanceState> {
           );
           if (preItem.id.isNotEmpty && preItem.totalCost > 0) {
             final portionCost = preItem.totalCost / (preItem.portions > 0 ? preItem.portions : 1);
+            final consumedCost = portionCost * (expense.syrupPortions ?? 1);
             
             // Debit the session participants
-            final participantShare = portionCost / expense.participantIds.length;
+            final participantShare = consumedCost / expense.participantIds.length;
             for (var partId in expense.participantIds) {
               if (balances.containsKey(partId)) {
                 balances[partId] = balances[partId]! - participantShare;
@@ -285,7 +311,7 @@ class FinanceNotifier extends Notifier<FinanceState> {
             // Credit the buyer of this stock item for this consumed portion!
             final buyerId = preItem.buyerId;
             if (balances.containsKey(buyerId)) {
-              balances[buyerId] = balances[buyerId]! + portionCost;
+              balances[buyerId] = balances[buyerId]! + consumedCost;
             }
           }
         }
@@ -385,11 +411,16 @@ class FinanceNotifier extends Notifier<FinanceState> {
     final List<PreStockItem> carriedOverStock = [];
     if (keepRemainingStock) {
       for (var item in state.preStockItems) {
-        final usedCount = state.expenses.where((e) =>
-            (item.type == 'kratom' && e.kratomStockId == item.id) ||
-            (item.type == 'syrup' && e.syrupStockId == item.id)
-        ).length;
-        final remainingPortions = item.portions - usedCount;
+        final usedCount = state.expenses.fold<int>(0, (sum, e) {
+          if (item.type == 'kratom' && e.kratomStockId == item.id) {
+            return sum + (e.kratomPortions ?? 1);
+          }
+          if (item.type == 'syrup' && e.syrupStockId == item.id) {
+            return sum + (e.syrupPortions ?? 1);
+          }
+          return sum;
+        });
+        final remainingPortions = item.startingPortions - usedCount;
         if (remainingPortions > 0) {
           final portionCost = item.totalCost / (item.portions > 0 ? item.portions : 1);
           final remainingCost = remainingPortions * portionCost;

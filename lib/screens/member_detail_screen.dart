@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -49,10 +50,15 @@ class MemberDetailScreen extends ConsumerWidget {
 
     // Add stock purchases (credited only for portions actually consumed in the period)
     for (var item in stockItemsBought) {
-      final usedCount = state.expenses.where((e) =>
-          (item.type == 'kratom' && e.kratomStockId == item.id) ||
-          (item.type == 'syrup' && e.syrupStockId == item.id)
-      ).length;
+      final usedCount = state.expenses.fold<int>(0, (sum, e) {
+        if (item.type == 'kratom' && e.kratomStockId == item.id) {
+          return sum + (e.kratomPortions ?? 1);
+        }
+        if (item.type == 'syrup' && e.syrupStockId == item.id) {
+          return sum + (e.syrupPortions ?? 1);
+        }
+        return sum;
+      });
       final portionCost = item.totalCost / (item.portions > 0 ? item.portions : 1);
       final consumedValue = usedCount * portionCost;
       
@@ -113,8 +119,8 @@ class MemberDetailScreen extends ConsumerWidget {
                 ? _getPortionCost(state.preStockItems, e.syrupStockId!)
                 : 0.0;
 
-        final kratomShare = portionPriceKratom / e.participantIds.length;
-        final syrupShare = portionPriceSyrup / e.participantIds.length;
+        final kratomShare = (portionPriceKratom * (e.kratomPortions ?? 1)) / e.participantIds.length;
+        final syrupShare = (portionPriceSyrup * (e.syrupPortions ?? 1)) / e.participantIds.length;
         final iceShare = e.totalAmount / e.participantIds.length;
         final totalSessionShare = kratomShare + syrupShare + iceShare;
 
@@ -152,7 +158,7 @@ class MemberDetailScreen extends ConsumerWidget {
     activities.sort((a, b) => b.date.compareTo(a.date));
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         backgroundColor: const Color(0xFF0F172A),
         appBar: AppBar(
@@ -289,39 +295,8 @@ class MemberDetailScreen extends ConsumerWidget {
               ),
             ),
 
-            // TabBar
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.05)),
-              ),
-              child: TabBar(
-                indicator: BoxDecoration(
-                  color: const Color(0xFF10B981),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                labelColor: Colors.black,
-                unselectedLabelColor: Colors.white60,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-                unselectedLabelStyle: const TextStyle(
-                  fontWeight: FontWeight.normal,
-                  fontSize: 13,
-                ),
-                tabs: const [
-                  Tab(text: 'ທັງໝົດ'),
-                  Tab(text: 'ອອກກ່ອນ'),
-                  Tab(text: 'ຫານຄ່າໃຊ້ຈ່າຍ'),
-                ],
-              ),
-            ),
+            // TabBar — per-tab coloured
+            const _ColoredTabBar(),
 
             // TabBarView
             Expanded(
@@ -336,6 +311,7 @@ class MemberDetailScreen extends ConsumerWidget {
                     activities.where((a) => !a.isPositive).toList(),
                     currencyFormat,
                   ),
+                  _buildQRTabContent(context, freshMember, ref),
                 ],
               ),
             ),
@@ -499,6 +475,330 @@ class MemberDetailScreen extends ConsumerWidget {
       case ExpenseCategory.other:
         return const Color(0xFF8B5CF6);
     }
+  }
+
+  Widget _buildQRTabContent(BuildContext context, Member member, WidgetRef ref) {
+    final qrPath = member.qrPath;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 10),
+          if (qrPath == null || qrPath.isEmpty) ...[
+            Container(
+              width: double.infinity,
+              height: 240,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.qr_code_2_rounded,
+                      color: Color(0xFF10B981),
+                      size: 48,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'ບໍ່ມີ QR Code ເທື່ອ',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'ອັບໂຫຼດ QR Code ສ່ວນຕົວເພື່ອໃຊ້ຮັບເງິນ',
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+              onPressed: () async {
+                final picker = ImagePicker();
+                final image = await picker.pickImage(
+                  source: ImageSource.gallery,
+                  maxWidth: 1024,
+                  maxHeight: 1024,
+                  imageQuality: 85,
+                );
+                if (image != null) {
+                  await ref.read(financeProvider.notifier).updateMemberQR(member.id, image.path);
+                }
+              },
+              icon: const Icon(Icons.photo_library_rounded, size: 20),
+              label: const Text(
+                'ເລືອກຮູບພາບ QR',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  )
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.file(
+                  File(qrPath),
+                  width: 220,
+                  height: 220,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 220,
+                      height: 220,
+                      color: const Color(0xFF334155),
+                      child: const Icon(
+                        Icons.broken_image_rounded,
+                        color: Colors.white38,
+                        size: 40,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final image = await picker.pickImage(
+                      source: ImageSource.gallery,
+                      maxWidth: 1024,
+                      maxHeight: 1024,
+                      imageQuality: 85,
+                    );
+                    if (image != null) {
+                      await ref.read(financeProvider.notifier).updateMemberQR(member.id, image.path);
+                    }
+                  },
+                  icon: const Icon(Icons.sync_rounded, size: 18),
+                  label: const Text('ປ່ຽນຮູບໃໝ່'),
+                ),
+                const SizedBox(width: 16),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFF87171),
+                    side: BorderSide(color: const Color(0xFFF87171).withOpacity(0.2)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: const Color(0xFF1E293B),
+                        title: const Text('ຢືນຢັນການລຶບ', style: TextStyle(color: Colors.white)),
+                        content: const Text(
+                          'ທ່ານຕ້ອງການລຶບ QR Code ນີ້ແທ້ຫຼືບໍ່?',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('ຍົກເລີກ', style: TextStyle(color: Colors.white38)),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('ລຶບເລີຍ', style: TextStyle(color: Color(0xFFF87171))),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await ref.read(financeProvider.notifier).updateMemberQR(member.id, null);
+                    }
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  label: const Text('ລຶບຮູບ'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Self-contained per-tab coloured TabBar
+// ---------------------------------------------------------------------------
+
+/// Colour spec for a single tab.
+class _TabSpec {
+  final String label;
+  /// Active indicator background (semi-transparent tint)
+  final Color activeBg;
+  /// Active label / indicator border colour
+  final Color activeLabel;
+  /// Inactive label colour
+  final Color inactiveLabel;
+  const _TabSpec({
+    required this.label,
+    required this.activeBg,
+    required this.activeLabel,
+    required this.inactiveLabel,
+  });
+}
+
+const _kTabSpecs = [
+  // ທັງໝົດ — vivid emerald, same treatment as others
+  _TabSpec(
+    label: 'ທັງໝົດ',
+    activeBg:      Color(0x40064E3B),   // emerald-900 @25%
+    activeLabel:   Color(0xFF10B981),   // emerald-500 — vivid
+    inactiveLabel: Color(0xFF10B981),   // same as active
+  ),
+  // ອອກກ່ອນ — vivid emerald-300 label; dark bg tint so text pops
+  _TabSpec(
+    label: 'ອອກກ່ອນ',
+    activeBg:      Color(0x40064E3B),   // emerald-900 @25%
+    activeLabel:   Color(0xFF34D399),   // emerald-300 — bright
+    inactiveLabel: Color(0xFF34D399),   // same as active
+  ),
+  // ຫານເງິນ — vivid rose label; dark bg tint so text pops
+  _TabSpec(
+    label: 'ຫານເງິນ',
+    activeBg:      Color(0x404C0519),   // rose-950 @25%
+    activeLabel:   Color(0xFFFB7185),   // rose-400 — bright
+    inactiveLabel: Color(0xFFFB7185),   // same as active
+  ),
+  // QR — vivid emerald, same treatment as ທັງໝົດ
+  _TabSpec(
+    label: 'QR',
+    activeBg:      Color(0x40064E3B),   // emerald-900 @25%
+    activeLabel:   Color(0xFF10B981),   // emerald-500 — vivid
+    inactiveLabel: Color(0xFF10B981),   // same as active
+  ),
+];
+
+class _ColoredTabBar extends StatefulWidget {
+  const _ColoredTabBar();
+  @override
+  State<_ColoredTabBar> createState() => _ColoredTabBarState();
+}
+
+class _ColoredTabBarState extends State<_ColoredTabBar> {
+  int _active = 0;
+  TabController? _ctrl;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ctrl = DefaultTabController.of(context);
+    if (ctrl != _ctrl) {
+      _ctrl?.removeListener(_onTabChange);
+      _ctrl = ctrl;
+      _ctrl!.addListener(_onTabChange);
+      _active = _ctrl!.index;
+    }
+  }
+
+  void _onTabChange() {
+    if (_ctrl != null && _ctrl!.index != _active) {
+      setState(() => _active = _ctrl!.index);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl?.removeListener(_onTabChange);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = _kTabSpecs[_active];
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: TabBar(
+        indicator: BoxDecoration(
+          color: spec.activeBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: spec.activeLabel.withValues(alpha: 0.6),
+            width: 1.5,
+          ),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        labelColor: spec.activeLabel,
+        unselectedLabelColor: Colors.white60,
+        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
+        tabs: List.generate(_kTabSpecs.length, (i) {
+          final s = _kTabSpecs[i];
+          final isActive = _active == i;
+          return Tab(
+            child: Text(
+              s.label,
+              style: TextStyle(
+                color: isActive ? s.activeLabel : s.inactiveLabel,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
+            ),
+          );
+        }),
+      ),
+    );
   }
 }
 

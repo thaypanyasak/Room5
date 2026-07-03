@@ -8,6 +8,7 @@ class PreStockItem {
   final String type; // 'kratom' or 'syrup'
   final bool isOutOfStock;
   final int portions; // Number of estimated portions/uses
+  final int? initialRemainingPortions; // Remaining portions when recorded
 
   PreStockItem({
     required this.id,
@@ -19,7 +20,10 @@ class PreStockItem {
     this.type = 'kratom',
     this.isOutOfStock = false,
     this.portions = 10,
+    this.initialRemainingPortions,
   });
+
+  int get startingPortions => initialRemainingPortions ?? portions;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -31,6 +35,7 @@ class PreStockItem {
         'type': type,
         'isOutOfStock': isOutOfStock,
         'portions': portions,
+        'initialRemainingPortions': initialRemainingPortions,
       };
 
   factory PreStockItem.fromJson(Map<String, dynamic> json) => PreStockItem(
@@ -43,6 +48,7 @@ class PreStockItem {
         type: json['type'] as String? ?? 'kratom',
         isOutOfStock: json['isOutOfStock'] as bool? ?? false,
         portions: json['portions'] as int? ?? (json['type'] == 'syrup' ? 50 : 10),
+        initialRemainingPortions: json['initialRemainingPortions'] as int?,
       );
 
   PreStockItem copyWith({
@@ -55,6 +61,7 @@ class PreStockItem {
     String? type,
     bool? isOutOfStock,
     int? portions,
+    int? initialRemainingPortions,
   }) {
     return PreStockItem(
       id: id ?? this.id,
@@ -66,6 +73,7 @@ class PreStockItem {
       type: type ?? this.type,
       isOutOfStock: isOutOfStock ?? this.isOutOfStock,
       portions: portions ?? this.portions,
+      initialRemainingPortions: initialRemainingPortions ?? this.initialRemainingPortions,
     );
   }
 }
