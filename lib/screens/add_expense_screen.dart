@@ -9,7 +9,8 @@ import '../utils/currency_formatter.dart';
 import '../widgets/member_avatar.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
-  const AddExpenseScreen({super.key});
+  final Expense? expenseToEdit;
+  const AddExpenseScreen({super.key, this.expenseToEdit});
 
   @override
   ConsumerState<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -57,6 +58,42 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   void _initializeState() {
     if (_initialized) return;
     final state = ref.read(financeProvider);
+
+    if (widget.expenseToEdit != null) {
+      final exp = widget.expenseToEdit!;
+      _selectedCategory = exp.category;
+      _titleController.text = exp.title;
+      _selectedDate = exp.date;
+      _dateController.text = DateFormat('dd/MM/yyyy').format(_selectedDate);
+      _selectedParticipants = List.from(exp.participantIds);
+
+      if (exp.payers.length == 1) {
+        _singlePayerId = exp.payers.keys.first;
+      } else {
+        _singlePayerId = null;
+        _customPayers.clear();
+        exp.payers.forEach((k, v) {
+          _customPayers[k] = v;
+        });
+      }
+
+      if (_selectedCategory == ExpenseCategory.kratom) {
+        final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
+        _iceCostController.text = displayFormat.format(exp.iceAmount ?? exp.totalAmount).trim();
+        final hasKratom = state.preStockItems.any((i) => i.id == exp.kratomStockId);
+        _selectedKratomStockId = hasKratom ? exp.kratomStockId : null;
+        final hasSyrup = state.preStockItems.any((i) => i.id == exp.syrupStockId);
+        _selectedSyrupStockId = hasSyrup ? exp.syrupStockId : null;
+        _kratomPortions = exp.kratomPortions ?? 1;
+        _syrupPortions = exp.syrupPortions ?? 1;
+      } else {
+        final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
+        _generalCostController.text = displayFormat.format(exp.totalAmount).trim();
+      }
+      _initialized = true;
+      return;
+    }
+
     if (state.members.isNotEmpty) {
       _singlePayerId = state.members.first.id;
       _selectedParticipants = state.members.map((m) => m.id).toList();
@@ -154,48 +191,93 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       }
     }
 
-    final now = DateTime.now();
-    final expenseDate = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      now.hour,
-      now.minute,
-      now.second,
-    );
+    final DateTime expenseDate;
+    if (widget.expenseToEdit != null &&
+        _selectedDate.year == widget.expenseToEdit!.date.year &&
+        _selectedDate.month == widget.expenseToEdit!.date.month &&
+        _selectedDate.day == widget.expenseToEdit!.date.day) {
+      expenseDate = widget.expenseToEdit!.date;
+    } else {
+      final now = DateTime.now();
+      expenseDate = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        now.hour,
+        now.minute,
+        now.second,
+      );
+    }
 
-    final newExpense = Expense(
-      id: const Uuid().v4(),
-      title: _titleController.text.trim(),
-      category: _selectedCategory,
-      totalAmount: total,
-      date: expenseDate,
-      kratomAmount: 0.0,
-      iceAmount:
-          _selectedCategory == ExpenseCategory.kratom
-              ? double.tryParse(_iceCostController.text.replaceAll('.', ''))
-              : null,
-      kratomStockId:
-          _selectedCategory == ExpenseCategory.kratom
-              ? _selectedKratomStockId
-              : null,
-      syrupStockId:
-          _selectedCategory == ExpenseCategory.kratom
-              ? _selectedSyrupStockId
-              : null,
-      kratomPortions:
-          _selectedCategory == ExpenseCategory.kratom && _selectedKratomStockId != null
-              ? _kratomPortions
-              : null,
-      syrupPortions:
-          _selectedCategory == ExpenseCategory.kratom && _selectedSyrupStockId != null
-              ? _syrupPortions
-              : null,
-      payers: payersMap,
-      participantIds: _selectedParticipants,
-    );
-
-    ref.read(financeProvider.notifier).addExpense(newExpense);
+    if (widget.expenseToEdit != null) {
+      final updatedExpense = widget.expenseToEdit!.copyWith(
+        title: _titleController.text.trim(),
+        category: _selectedCategory,
+        totalAmount: total,
+        date: expenseDate,
+        iceAmount:
+            _selectedCategory == ExpenseCategory.kratom
+                ? double.tryParse(_iceCostController.text.replaceAll('.', ''))
+                : null,
+        kratomStockId:
+            _selectedCategory == ExpenseCategory.kratom
+                ? _selectedKratomStockId
+                : null,
+        syrupStockId:
+            _selectedCategory == ExpenseCategory.kratom
+                ? _selectedSyrupStockId
+                : null,
+        kratomPortions:
+            _selectedCategory == ExpenseCategory.kratom && _selectedKratomStockId != null
+                ? _kratomPortions
+                : null,
+        syrupPortions:
+            _selectedCategory == ExpenseCategory.kratom && _selectedSyrupStockId != null
+                ? _syrupPortions
+                : null,
+        payers: payersMap,
+        participantIds: _selectedParticipants,
+      );
+      ref.read(financeProvider.notifier).updateExpense(updatedExpense);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ອັບເດດລາຍຈ່າຍສຳເລັດ!')),
+      );
+    } else {
+      final newExpense = Expense(
+        id: const Uuid().v4(),
+        title: _titleController.text.trim(),
+        category: _selectedCategory,
+        totalAmount: total,
+        date: expenseDate,
+        kratomAmount: 0.0,
+        iceAmount:
+            _selectedCategory == ExpenseCategory.kratom
+                ? double.tryParse(_iceCostController.text.replaceAll('.', ''))
+                : null,
+        kratomStockId:
+            _selectedCategory == ExpenseCategory.kratom
+                ? _selectedKratomStockId
+                : null,
+        syrupStockId:
+            _selectedCategory == ExpenseCategory.kratom
+                ? _selectedSyrupStockId
+                : null,
+        kratomPortions:
+            _selectedCategory == ExpenseCategory.kratom && _selectedKratomStockId != null
+                ? _kratomPortions
+                : null,
+        syrupPortions:
+            _selectedCategory == ExpenseCategory.kratom && _selectedSyrupStockId != null
+                ? _syrupPortions
+                : null,
+        payers: payersMap,
+        participantIds: _selectedParticipants,
+      );
+      ref.read(financeProvider.notifier).addExpense(newExpense);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ບັນທຶກລາຍຈ່າຍສຳເລັດ!')),
+      );
+    }
     Navigator.pop(context);
   }
 
@@ -208,9 +290,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
-        title: const Text(
-          'ເພີ່ມລາຍຈ່າຍໃໝ່',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+        title: Text(
+          widget.expenseToEdit != null ? 'ແກ́ໄຂລາຍຈ່າຍ' : 'ເພີ່ມລາຍຈ່າຍໃໝ່',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
         ),
         backgroundColor: const Color(0xFF1E293B),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -510,17 +592,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     )
                                     .name;
                             final usedCount = state.expenses.fold<int>(0, (sum, e) =>
-                              e.kratomStockId == item.id ? sum + (e.kratomPortions ?? 1) : sum);
+                              (e.kratomStockId == item.id && e.id != widget.expenseToEdit?.id) ? sum + (e.kratomPortions ?? 1) : sum);
                             final remaining = item.startingPortions - usedCount;
                             final isAvailable =
-                                !item.isOutOfStock && remaining > 0;
+                                (!item.isOutOfStock && remaining > 0) || item.id == widget.expenseToEdit?.kratomStockId;
                             final label =
                                 '${item.itemName} (ຍັງ $remaining/${item.portions})';
                             return DropdownMenuItem<String>(
                               value: item.id,
                               enabled: isAvailable,
                               child: Text(
-                                isAvailable ? label : '$label (ໝົດແລ້ວ)',
+                                isAvailable ? label : '$label (ໝົດແລ́ວ)',
                                 style: TextStyle(
                                   color:
                                       isAvailable
@@ -550,10 +632,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     )
                                     .name;
                             final usedCount = state.expenses.fold<int>(0, (sum, e) =>
-                              e.syrupStockId == item.id ? sum + (e.syrupPortions ?? 1) : sum);
+                              (e.syrupStockId == item.id && e.id != widget.expenseToEdit?.id) ? sum + (e.syrupPortions ?? 1) : sum);
                             final remaining = item.startingPortions - usedCount;
                             final isAvailable =
-                                !item.isOutOfStock && remaining > 0;
+                                (!item.isOutOfStock && remaining > 0) || item.id == widget.expenseToEdit?.syrupStockId;
                             final label =
                                 '${item.itemName} (ຍັງ $remaining/${item.portions} )';
                             return DropdownMenuItem<String>(
@@ -1035,9 +1117,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       ),
                     ),
                     onPressed: _saveExpense,
-                    child: const Text(
-                      'ບັນທຶກ',
-                      style: TextStyle(
+                    child: Text(
+                      widget.expenseToEdit != null ? 'ບັນທຶກການແກ້ໄຂ' : 'ບັນທຶກ',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

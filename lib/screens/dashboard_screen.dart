@@ -183,62 +183,101 @@ class DashboardScreen extends ConsumerWidget {
                           final balance = balances[member.id] ?? 0.0;
                           final isOwed = balance >= 0;
 
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MemberDetailScreen(member: member),
+                          return Dismissible(
+                            key: Key(member.id),
+                            direction: DismissDirection.endToStart,
+                            confirmDismiss: (direction) async {
+                              final bool hasExpenses = state.expenses.any((e) =>
+                                  e.payers.containsKey(member.id) || e.participantIds.contains(member.id));
+                              final bool hasPreStock = state.preStockItems.any((i) => i.buyerId == member.id);
+                              final bool isDeletable = !hasExpenses && !hasPreStock;
+
+                              if (!isDeletable) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('ບໍ່ສາມາດລົບສະມາຊິກໄດ້ ເພາະວ່າມີທຸລະກຳ ຫຼື ປະຫວັດການໃຊ້ຈ່າຍແລ້ວ!'),
+                                    backgroundColor: Color(0xFFEF4444),
+                                  ),
+                                );
+                                return false;
+                              }
+                              return true;
+                            },
+                            onDismissed: (_) {
+                              ref.read(financeProvider.notifier).deleteMember(member.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('ລົບສະມາຊິກ "${member.name}" ສຳເລັດ!'),
                                 ),
                               );
                             },
-                            child: Container(
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
                               margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
+                                color: Colors.redAccent.withOpacity(0.8),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.white.withOpacity(0.05)),
                               ),
-                            child: Row(
-                              children: [
-                                MemberAvatar(
-                                  member: member,
-                                  radius: 24,
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Text(
-                                    member.name,
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                                  ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      isOwed ? 'ໄດ້ຮັບຄືນ' : 'ຕ້ອງຈ່າຍ',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isOwed ? Colors.greenAccent : Colors.redAccent,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      currencyFormat.format(balance.abs()),
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: isOwed ? const Color(0xFF10B981) : const Color(0xFFF87171),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              ],
+                              child: const Icon(Icons.delete, color: Colors.white),
                             ),
-                          ),
-                        );
-                      },
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MemberDetailScreen(member: member),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    MemberAvatar(
+                                      member: member,
+                                      radius: 24,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Text(
+                                        member.name,
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                    ),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          isOwed ? 'ໄດ້ຮັບຄືນ' : 'ຕ້ອງຈ່າຍ',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isOwed ? Colors.greenAccent : Colors.redAccent,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          currencyFormat.format(balance.abs()),
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: isOwed ? const Color(0xFF10B981) : const Color(0xFFF87171),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 28),
 
@@ -573,8 +612,10 @@ class DashboardScreen extends ConsumerWidget {
         return Consumer(
           builder: (context, ref, _) {
             final currentExpense = ref.watch(financeProvider).expenses.firstWhere((e) => e.id == expense.id, orElse: () => expense);
+            final double currentKratomTotalCost = kratomPortionCost * (currentExpense.kratomPortions ?? 1);
+            final double currentSyrupTotalCost = syrupPortionCost * (currentExpense.syrupPortions ?? 1);
             final double currentIceCost = currentExpense.category == ExpenseCategory.kratom ? currentExpense.totalAmount : 0.0;
-            final double currentTotalSessionCost = kratomPortionCost + syrupPortionCost + currentIceCost;
+            final double currentTotalSessionCost = currentKratomTotalCost + currentSyrupTotalCost + currentIceCost;
             final double currentSharePerPerson = currentExpense.participantIds.isNotEmpty
                 ? (currentExpense.category == ExpenseCategory.kratom
                     ? (currentTotalSessionCost / currentExpense.participantIds.length)
@@ -651,6 +692,22 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
         ? (widget.expense.iceAmount ?? widget.expense.totalAmount)
         : widget.expense.totalAmount;
     _iceController = TextEditingController(text: displayFormat.format(initialCost).trim());
+  }
+
+  @override
+  void didUpdateWidget(covariant _ExpenseDetailModalContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.expense != oldWidget.expense) {
+      _editedParticipants = List.from(widget.expense.participantIds);
+      _editedPayerId = widget.expense.payers.isNotEmpty ? widget.expense.payers.keys.first : null;
+      _titleController.text = widget.expense.title;
+      
+      final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
+      final cost = widget.expense.category == ExpenseCategory.kratom
+          ? (widget.expense.iceAmount ?? widget.expense.totalAmount)
+          : widget.expense.totalAmount;
+      _iceController.text = displayFormat.format(cost).trim();
+    }
   }
 
   @override
@@ -1014,10 +1071,13 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                 ),
                 IconButton(
                   icon: const Icon(Icons.edit_rounded, color: Color(0xFF10B981)),
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = true;
-                    });
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddExpenseScreen(expenseToEdit: widget.expense),
+                      ),
+                    );
                   },
                 )
               ],
@@ -1040,14 +1100,14 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                   if (widget.expense.category == ExpenseCategory.kratom) ...[
                     if (widget.kratomStock != null)
                       _buildDetailRow(
-                        label: 'ໃບ Kratom (${widget.kratomStock!.itemName})',
-                        value: widget.currencyFormat.format(widget.kratomPortionCost),
+                        label: 'ໃບ Kratom (x${widget.expense.kratomPortions ?? 1}) (${widget.kratomStock!.itemName})',
+                        value: widget.currencyFormat.format(widget.kratomPortionCost * (widget.expense.kratomPortions ?? 1)),
                         subText: 'ຊື້ໂດຍ: ${widget.state.members.firstWhere((m) => m.id == widget.kratomStock!.buyerId, orElse: () => Member(id: '', name: 'ບໍ່ຮູ້ຊື່', avatarUrl: '')).name}',
                       ),
                     if (widget.syrupStock != null)
                       _buildDetailRow(
-                        label: 'ນ້ຳຢາ (${widget.syrupStock!.itemName})',
-                        value: widget.currencyFormat.format(widget.syrupPortionCost),
+                        label: 'ນ້ຳຢາ (x${widget.expense.syrupPortions ?? 1}) (${widget.syrupStock!.itemName})',
+                        value: widget.currencyFormat.format(widget.syrupPortionCost * (widget.expense.syrupPortions ?? 1)),
                         subText: 'ຊື້ໂດຍ: ${widget.state.members.firstWhere((m) => m.id == widget.syrupStock!.buyerId, orElse: () => Member(id: '', name: 'ບໍ່ຮູ້ຊື່', avatarUrl: '')).name}',
                       ),
                     if (widget.iceCost > 0)
@@ -1058,7 +1118,7 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                       ),
                     const Divider(color: Colors.white12, height: 20),
                     _buildDetailRow(
-                      label: 'ລາຄາລວມ 1 ຊຸດ',
+                      label: 'ລາຄາລວມ',
                       value: widget.currencyFormat.format(widget.totalSessionCost),
                       isBold: true,
                       valueColor: const Color(0xFF10B981),
