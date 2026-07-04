@@ -252,17 +252,20 @@ class _AddUtilitySheetState extends ConsumerState<_AddUtilitySheet> {
     _initialize();
     final state = ref.watch(financeProvider);
 
-    return Container(
-      color: const Color(0xFF1E293B),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        left: 20,
-        right: 20,
-        top: 24,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: Container(
+        color: const Color(0xFF1E293B),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          left: 20,
+          right: 20,
+          top: 24,
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -439,6 +442,7 @@ class _AddUtilitySheetState extends ConsumerState<_AddUtilitySheet> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

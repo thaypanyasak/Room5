@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/finance_provider.dart';
 import '../widgets/member_avatar.dart';
@@ -698,7 +699,7 @@ const _kTabSpecs = [
     label: 'ທັງໝົດ',
     activeBg:      Color(0x40064E3B),   // emerald-900 @25%
     activeLabel:   Color(0xFF10B981),   // emerald-500 — vivid
-    inactiveLabel: Color(0xFF10B981),   // same as active
+    inactiveLabel: Colors.white60,      // grey color when not active
   ),
   // ອອກກ່ອນ — vivid emerald-300 label; dark bg tint so text pops
   _TabSpec(
@@ -719,7 +720,7 @@ const _kTabSpecs = [
     label: 'QR',
     activeBg:      Color(0x40064E3B),   // emerald-900 @25%
     activeLabel:   Color(0xFF10B981),   // emerald-500 — vivid
-    inactiveLabel: Color(0xFF10B981),   // same as active
+    inactiveLabel: Colors.white60,      // grey color when not active
   ),
 ];
 
@@ -739,21 +740,35 @@ class _ColoredTabBarState extends State<_ColoredTabBar> {
     final ctrl = DefaultTabController.of(context);
     if (ctrl != _ctrl) {
       _ctrl?.removeListener(_onTabChange);
+      _ctrl?.animation?.removeListener(_onTabChange);
       _ctrl = ctrl;
       _ctrl!.addListener(_onTabChange);
+      _ctrl!.animation?.addListener(_onTabChange);
       _active = _ctrl!.index;
     }
   }
 
   void _onTabChange() {
-    if (_ctrl != null && _ctrl!.index != _active) {
-      setState(() => _active = _ctrl!.index);
+    if (_ctrl == null) return;
+    if (_ctrl!.indexIsChanging) {
+      // User tapped a tab: update to target index immediately
+      if (_ctrl!.index != _active) {
+        setState(() => _active = _ctrl!.index);
+      }
+    } else {
+      // User is swiping: update to the closest tab as soon as swipe passes 50%
+      final animationValue = _ctrl!.animation?.value ?? _ctrl!.index.toDouble();
+      final targetActive = animationValue.round();
+      if (targetActive != _active && targetActive >= 0 && targetActive < _kTabSpecs.length) {
+        setState(() => _active = targetActive);
+      }
     }
   }
 
   @override
   void dispose() {
     _ctrl?.removeListener(_onTabChange);
+    _ctrl?.animation?.removeListener(_onTabChange);
     super.dispose();
   }
 
@@ -781,15 +796,15 @@ class _ColoredTabBarState extends State<_ColoredTabBar> {
         dividerColor: Colors.transparent,
         labelColor: spec.activeLabel,
         unselectedLabelColor: Colors.white60,
-        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
+        labelStyle: GoogleFonts.notoSansLao(fontWeight: FontWeight.bold, fontSize: 13),
+        unselectedLabelStyle: GoogleFonts.notoSansLao(fontWeight: FontWeight.normal, fontSize: 13),
         tabs: List.generate(_kTabSpecs.length, (i) {
           final s = _kTabSpecs[i];
           final isActive = _active == i;
           return Tab(
             child: Text(
               s.label,
-              style: TextStyle(
+              style: GoogleFonts.notoSansLao(
                 color: isActive ? s.activeLabel : s.inactiveLabel,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                 fontSize: 13,
