@@ -83,20 +83,7 @@ class FinanceNotifier extends Notifier<FinanceState> {
       ];
       await _storage.saveMembers(members);
     } else {
-      // Migrate old default members' avatars to new styles
       bool updated = false;
-      
-      // Ensure 'Mei' is in the list
-      final hasMei = members.any((m) => m.id == 'Mei' || m.name.toLowerCase() == 'mei');
-      if (!hasMei) {
-        members.add(Member(
-          id: 'Mei',
-          name: 'Mei',
-          avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=Mei',
-        ));
-        updated = true;
-      }
-
       members = members.map((m) {
         if (m.id == 'Thay' && m.avatarUrl.contains('avataaars')) {
           updated = true;
