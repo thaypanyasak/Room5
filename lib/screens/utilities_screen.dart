@@ -175,9 +175,17 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
                                         style: const TextStyle(color: Colors.white38, fontSize: 11),
                                       ),
                                       const SizedBox(height: 2),
-                                      Text(
-                                        'ຫານກັນ ${expense.participantIds.length} ຄົນ',
-                                        style: const TextStyle(color: Colors.white54, fontSize: 10),
+                                      Builder(
+                                        builder: (context) {
+                                          final hasCustomWeights = expense.participantWeights != null &&
+                                              expense.participantWeights!.values.any((w) => w != 1.0);
+                                          return Text(
+                                            hasCustomWeights
+                                                ? 'ຫານຕາມສ່ວນແບ່ງ (${expense.participantIds.length} ຄົນ)'
+                                                : 'ຫານກັນ ${expense.participantIds.length} ຄົນ',
+                                            style: const TextStyle(color: Colors.white54, fontSize: 10),
+                                          );
+                                        }
                                       ),
                                     ],
                                   ),
@@ -228,7 +236,16 @@ class _AddUtilitySheetState extends ConsumerState<_AddUtilitySheet> {
   final _costController = TextEditingController();
   String? _payerId;
   List<String> _selectedParticipants = [];
+  Map<String, double> _participantWeights = {};
   bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _costController.addListener(() {
+      setState(() {});
+    });
+  }
 
   @override
   void dispose() {
@@ -243,6 +260,7 @@ class _AddUtilitySheetState extends ConsumerState<_AddUtilitySheet> {
     if (state.members.isNotEmpty) {
       _payerId = state.members.first.id;
       _selectedParticipants = state.members.map((m) => m.id).toList();
+      _participantWeights = {for (var id in _selectedParticipants) id: 1.0};
       _initialized = true;
     }
   }
@@ -251,6 +269,7 @@ class _AddUtilitySheetState extends ConsumerState<_AddUtilitySheet> {
   Widget build(BuildContext context) {
     _initialize();
     final state = ref.watch(financeProvider);
+    final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₭', decimalDigits: 0);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -266,183 +285,290 @@ class _AddUtilitySheetState extends ConsumerState<_AddUtilitySheet> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'ເພີ່ມບິນຄ່າຫ້ອງ (ໄຟ / ນ້ຳ / ຫ້ອງ)',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'ເພີ່ມບິນຄ່າຫ້ອງ (ໄຟ / ນ້ຳ / ຫ້ອງ)',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
 
-              // Title
-              TextFormField(
-                controller: _titleController,
-                style: const TextStyle(color: Colors.white),
-                validator: (val) => val == null || val.trim().isEmpty ? 'ປ້ອນຫົວຂໍ້ບິນ' : null,
-                decoration: InputDecoration(
-                  labelText: 'ຊື່ລາຍການ (ຕົວຢ່າງ: ຄ່າໄຟເດືອນ 6, ຄ່ານ້ຳປະປາ...)',
-                  labelStyle: const TextStyle(color: Colors.white60, fontSize: 14),
-                  filled: true,
-                  fillColor: const Color(0xFF0F172A),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFEC4899)),
+                // Title
+                TextFormField(
+                  controller: _titleController,
+                  style: const TextStyle(color: Colors.white),
+                  validator: (val) => val == null || val.trim().isEmpty ? 'ປ້ອນຫົວຂໍ້ບິນ' : null,
+                  decoration: InputDecoration(
+                    labelText: 'ຊື່ລາຍການ (ຕົວຢ່າງ: ຄ່າໄຟເດືອນ 6, ຄ່ານ້ຳປະປາ...)',
+                    labelStyle: const TextStyle(color: Colors.white60, fontSize: 14),
+                    filled: true,
+                    fillColor: const Color(0xFF0F172A),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFEC4899)),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Cost
-              TextFormField(
-                controller: _costController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [CurrencyInputFormatter()],
-                style: const TextStyle(color: Colors.white),
-                validator: (val) {
-                  if (val == null || val.isEmpty) return 'ປ້ອນຈຳນວນເງິນ';
-                  if (double.tryParse(val.replaceAll('.', '')) == null) return 'ປ້ອນຕົວເລກໃຫ້ຖືກຕ້ອງ';
-                  return null;
-                },
-                decoration: InputDecoration(
-                  labelText: 'ຈຳນວນເງິນ (₭)',
-                  labelStyle: const TextStyle(color: Colors.white60, fontSize: 14),
-                  filled: true,
-                  fillColor: const Color(0xFF0F172A),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFEC4899)),
+                // Cost
+                TextFormField(
+                  controller: _costController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [CurrencyInputFormatter()],
+                  style: const TextStyle(color: Colors.white),
+                  validator: (val) {
+                    if (val == null || val.isEmpty) return 'ປ້ອນຈຳນວນເງິນ';
+                    if (double.tryParse(val.replaceAll('.', '')) == null) return 'ປ້ອນຕົວເລກໃຫ້ຖືກຕ້ອງ';
+                    return null;
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'ຈຳນວນເງິນ (₭)',
+                    labelStyle: const TextStyle(color: Colors.white60, fontSize: 14),
+                    filled: true,
+                    fillColor: const Color(0xFF0F172A),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFEC4899)),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Payer Selector
-              const Text('ໃຜເປັນຄົນຈ່າຍກ່ອນ?', style: TextStyle(color: Colors.white70, fontSize: 13)),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                // Payer Selector
+                const Text('ໃຜເປັນຄົນຈ່າຍກ່ອນ?', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _payerId,
+                      dropdownColor: const Color(0xFF0F172A),
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
+                      items: state.members.map((m) {
+                        return DropdownMenuItem<String>(
+                          value: m.id,
+                          child: Text(m.name, style: const TextStyle(color: Colors.white)),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          _payerId = val;
+                        });
+                      },
+                    ),
+                  ),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _payerId,
-                    dropdownColor: const Color(0xFF0F172A),
-                    isExpanded: true,
-                    icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
-                    items: state.members.map((m) {
-                      return DropdownMenuItem<String>(
-                        value: m.id,
-                        child: Text(m.name, style: const TextStyle(color: Colors.white)),
+                const SizedBox(height: 20),
+
+                // Participant Multi-selector
+                const Text(
+                  'ຫານໃຫ້ໃຜແດ່? (ເລືອກຄົນ ແລະ ປັບປ່ຽນສ່ວນແບ່ງ)',
+                  style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: state.members.length,
+                    separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+                    itemBuilder: (context, index) {
+                      final m = state.members[index];
+                      final isSelected = _selectedParticipants.contains(m.id);
+                      final weight = _participantWeights[m.id] ?? 1.0;
+                      
+                      // Real-time split calculation
+                      final totalAmount = double.tryParse(_costController.text.replaceAll('.', '')) ?? 0.0;
+                      final totalWeight = _selectedParticipants.fold<double>(0.0, (sum, id) => sum + (_participantWeights[id] ?? 1.0));
+                      final totalWeightVal = totalWeight > 0 ? totalWeight : 1.0;
+                      final shareAmount = isSelected ? (totalAmount * (weight / totalWeightVal)) : 0.0;
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          children: [
+                            // Custom Checkbox
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    if (_selectedParticipants.length > 1) {
+                                      _selectedParticipants.remove(m.id);
+                                      _participantWeights.remove(m.id);
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('ຕ້ອງມີຢ່າງໜ້ອຍ 1 ຄົນเพื่อຫານເງິນ!')),
+                                      );
+                                    }
+                                  } else {
+                                    _selectedParticipants.add(m.id);
+                                    _participantWeights[m.id] = 1.0;
+                                  }
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? const Color(0xFFEC4899) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: isSelected ? const Color(0xFFEC4899) : Colors.white30,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: isSelected
+                                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Avatar & Name
+                            MemberAvatar(member: m, radius: 16),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    m.name,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : Colors.white38,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  if (isSelected && totalAmount > 0) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      currencyFormat.format(shareAmount),
+                                      style: const TextStyle(
+                                        color: Color(0xFFEC4899),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            // Weight Selector (Only visible if selected)
+                            if (isSelected)
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                      icon: const Icon(Icons.remove, color: Colors.white70, size: 14),
+                                      onPressed: () {
+                                        if (weight > 0.5) {
+                                          setState(() {
+                                            _participantWeights[m.id] = weight - 0.5;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                    Text(
+                                      '${weight.toStringAsFixed(1)} ສ່ວນ',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                      icon: const Icon(Icons.add, color: Colors.white70, size: 14),
+                                      onPressed: () {
+                                        if (weight < 5.0) {
+                                          setState(() {
+                                            _participantWeights[m.id] = weight + 0.5;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
                       );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _payerId = val;
-                      });
                     },
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-              // Participant Multi-selector
-              const Text('ຫານໃຫ້ໃຜແດ່? (ເລືອກຄົນທີ່ແບ່ງປັນຄ່າໃຊ້ຈ່າຍ)', style: TextStyle(color: Colors.white70, fontSize: 13)),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
-                ),
-                child: Column(
-                  children: state.members.map((m) {
-                    final isSelected = _selectedParticipants.contains(m.id);
-                    return CheckboxListTile(
-                      title: Row(
-                        children: [
-                          MemberAvatar(
-                            member: m,
-                            radius: 16,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(m.name, style: const TextStyle(color: Colors.white)),
-                        ],
-                      ),
-                      value: isSelected,
-                      activeColor: const Color(0xFFEC4899),
-                      checkColor: Colors.white,
-                      onChanged: (val) {
-                        setState(() {
-                          if (val == true) {
-                            if (!isSelected) _selectedParticipants.add(m.id);
-                          } else {
-                            if (_selectedParticipants.length > 1) {
-                              _selectedParticipants.remove(m.id);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('ຕ້ອງມີຢ່າງໜ້ອຍ 1 ຄົນເພື່ອຫານເງິນ!')),
-                              );
-                            }
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 24),
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEC4899),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      if (_formKey.currentState!.validate() && _payerId != null && _selectedParticipants.isNotEmpty) {
+                        final amount = double.parse(_costController.text.replaceAll('.', ''));
+                        
+                        final newExpense = Expense(
+                          id: const Uuid().v4(),
+                          title: _titleController.text.trim(),
+                          category: ExpenseCategory.utilities,
+                          totalAmount: amount,
+                          date: DateTime.now(),
+                          payers: {_payerId!: amount},
+                          participantIds: _selectedParticipants,
+                          participantWeights: _participantWeights,
+                        );
 
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEC4899),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    if (_formKey.currentState!.validate() && _payerId != null && _selectedParticipants.isNotEmpty) {
-                      final amount = double.parse(_costController.text.replaceAll('.', ''));
-                      
-                      final newExpense = Expense(
-                        id: const Uuid().v4(),
-                        title: _titleController.text.trim(),
-                        category: ExpenseCategory.utilities,
-                        totalAmount: amount,
-                        date: DateTime.now(),
-                        payers: {_payerId!: amount},
-                        participantIds: _selectedParticipants,
-                      );
-
-                      ref.read(financeProvider.notifier).addExpense(newExpense);
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Text(
-                    'ບັນທຶກບິນຄ່າຫ້ອງ',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        ref.read(financeProvider.notifier).addExpense(newExpense);
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: const Text(
+                      'ບັນທຶກບິນຄ່າຫ້ອງ',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

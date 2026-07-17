@@ -32,7 +32,20 @@ class _PreStockScreenState extends ConsumerState<PreStockScreen> {
         state.preStockItems.where((item) => item.type == widget.type).toList();
     final double totalStockCost = items.fold<double>(
       0,
-      (sum, i) => sum + i.totalCost,
+      (sum, item) {
+        final usedCount = state.expenses.fold<int>(0, (sum2, e) {
+          if (item.type == 'kratom' && e.kratomStockId == item.id) {
+            return sum2 + (e.kratomPortions ?? 1);
+          }
+          if (item.type == 'syrup' && e.syrupStockId == item.id) {
+            return sum2 + (e.syrupPortions ?? 1);
+          }
+          return sum2;
+        });
+        final remaining = item.startingPortions - usedCount;
+        final portionCost = item.totalCost / (item.portions > 0 ? item.portions : 1);
+        return sum + (portionCost * remaining);
+      },
     );
 
     final isKratom = widget.type == 'kratom';

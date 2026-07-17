@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/finance_provider.dart';
+import '../widgets/member_avatar.dart';
 
 class SettleUpScreen extends ConsumerWidget {
   const SettleUpScreen({super.key});
@@ -11,6 +12,7 @@ class SettleUpScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(financeProvider);
     final notifier = ref.read(financeProvider.notifier);
+    final balances = notifier.calculateBalances();
     final transfers = notifier.calculateOptimizedTransfers();
     final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'K', decimalDigits: 0);
 
@@ -22,139 +24,223 @@ class SettleUpScreen extends ConsumerWidget {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Info Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.05)),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ຊຳລະແບບປະຢັດການໂອນ',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'ລະບົບໄດ້ຄຳນວນ ແລະ ຈັບຄູ່ຜູ້ຕິດໜີ້ ກັບ ຜູ້ທີ່ຈະໄດ້ຮັບເງິນຄືນ ເພື່ອໃຫ້ມີການໂອນເງິນໜ້ອຍຄັ້ງທີ່ສຸດ.',
-                    style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.5),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            const Text(
-              'ລາຍການໂອນເງິນທີ່ຕ້ອງເຮັດ',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-            const SizedBox(height: 12),
-
-            // Transfers list
-            Expanded(
-              child: transfers.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Info Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.check_circle_outline_rounded, size: 64, color: const Color(0xFF10B981).withOpacity(0.8)),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'ທຸກຢ່າງເຄຼຍກັນໝົດແລ້ວ!',
+                          Text(
+                            'ຊຳລະແບບປະຢັດການໂອນ',
                             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'ລະບົບໄດ້ຄຳນວນ ແລະ ຈັບຄູ່ຜູ້ຕິດໜີ້ ກັບ ຜູ້ທີ່ຈະໄດ້ຮັບເງິນຄືນ ເພື່ອໃຫ້ມີການໂອນເງິນໜ້ອຍຄັ້ງທີ່ສຸດ.',
+                            style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.5),
                           ),
                         ],
                       ),
-                    )
-                  : ListView.builder(
-                      itemCount: transfers.length,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Member Balances Section
+                    const Text(
+                      'ຍອດເງິນສະມາຊິກ',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: state.members.length,
                       itemBuilder: (context, index) {
-                        final transfer = transfers[index];
+                        final member = state.members[index];
+                        final balance = balances[member.id] ?? 0.0;
+                        final isOwed = balance >= 0;
+
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1E293B),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.03)),
+                            border: Border.all(color: Colors.white.withOpacity(0.05)),
                           ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            leading: Stack(
-                              children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundImage: NetworkImage(transfer.from.avatarUrl),
+                          child: Row(
+                            children: [
+                              MemberAvatar(
+                                member: member,
+                                radius: 20,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  member.name,
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                                 ),
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.redAccent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.arrow_upward_rounded, size: 10, color: Colors.white),
-                                  ),
-                                )
-                              ],
-                            ),
-                            title: RichText(
-                              text: TextSpan(
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  TextSpan(
-                                    text: transfer.from.name,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
+                                  Text(
+                                    isOwed ? 'ໄດ້ຮັບຄືນ' : 'ຕ້ອງຈ່າຍ',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isOwed ? Colors.greenAccent : Colors.redAccent,
+                                    ),
                                   ),
-                                  const TextSpan(
-                                    text: ' ໂອນໃຫ້ ',
-                                    style: TextStyle(color: Colors.white54, fontSize: 13),
-                                  ),
-                                  TextSpan(
-                                    text: transfer.to.name,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    currencyFormat.format(balance.abs()),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: isOwed ? const Color(0xFF10B981) : const Color(0xFFF87171),
+                                    ),
                                   ),
                                 ],
-                              ),
-                            ),
-                            subtitle: const Padding(
-                              padding: EdgeInsets.only(top: 4),
-                              child: Text(
-                                'ແຕະເພື່ອເບິ່ງ QR Code ໂອນໄວ',
-                                style: TextStyle(color: Colors.white30, fontSize: 11),
-                              ),
-                            ),
-                            trailing: Text(
-                              currencyFormat.format(transfer.amount),
-                              style: const TextStyle(
-                                color: Color(0xFF10B981),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                            onTap: () {
-                              _showQRDialog(context, transfer, currencyFormat);
-                            },
+                              )
+                            ],
                           ),
                         );
                       },
                     ),
-            ),
+                    const SizedBox(height: 24),
 
-            // Settle up & reset button
-            if (state.expenses.isNotEmpty || state.preStockItems.isNotEmpty)
-              Container(
+                    // Transfers Section
+                    const Text(
+                      'ລາຍການໂອນເງິນທີ່ຕ້ອງເຮັດ',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+                    transfers.isEmpty
+                        ? Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 32),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_circle_outline_rounded, size: 48, color: const Color(0xFF10B981).withOpacity(0.8)),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'ທຸກຢ່າງເຄຼຍກັນໝົດແລ້ວ!',
+                                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: transfers.length,
+                            itemBuilder: (context, index) {
+                              final transfer = transfers[index];
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.white.withOpacity(0.03)),
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  leading: Stack(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 20,
+                                        backgroundImage: NetworkImage(transfer.from.avatarUrl),
+                                      ),
+                                      Positioned(
+                                        right: 0,
+                                        bottom: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(2),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.redAccent,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.arrow_upward_rounded, size: 10, color: Colors.white),
+                                        ),
+                                      )
+                                    ],
+                                  ),
+                                  title: RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: transfer.from.name,
+                                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
+                                        ),
+                                        const TextSpan(
+                                          text: ' ໂອນໃຫ້ ',
+                                          style: TextStyle(color: Colors.white54, fontSize: 13),
+                                        ),
+                                        TextSpan(
+                                          text: transfer.to.name,
+                                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  subtitle: const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'ແຕະເພື່ອເບິ່ງ QR Code ໂອນໄວ',
+                                      style: TextStyle(color: Colors.white30, fontSize: 11),
+                                    ),
+                                  ),
+                                  trailing: Text(
+                                    currencyFormat.format(transfer.amount),
+                                    style: const TextStyle(
+                                      color: Color(0xFF10B981),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    _showQRDialog(context, transfer, currencyFormat);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (state.expenses.isNotEmpty || state.preStockItems.isNotEmpty)
+            SafeArea(
+              top: false,
+              child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withOpacity(0.08)),
+                  ),
+                ),
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFF87171),
@@ -172,8 +258,8 @@ class SettleUpScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

@@ -676,6 +676,7 @@ class _ExpenseDetailModalContent extends StatefulWidget {
 class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> {
   bool _isEditing = false;
   late List<String> _editedParticipants;
+  late Map<String, double> _editedParticipantWeights;
   late String? _editedPayerId;
   late TextEditingController _titleController;
   late TextEditingController _iceController;
@@ -684,6 +685,9 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
   void initState() {
     super.initState();
     _editedParticipants = List.from(widget.expense.participantIds);
+    _editedParticipantWeights = widget.expense.participantWeights != null
+        ? Map<String, double>.from(widget.expense.participantWeights!)
+        : {for (var id in _editedParticipants) id: 1.0};
     _editedPayerId = widget.expense.payers.isNotEmpty ? widget.expense.payers.keys.first : null;
     _titleController = TextEditingController(text: widget.expense.title);
     
@@ -699,6 +703,9 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
     super.didUpdateWidget(oldWidget);
     if (widget.expense != oldWidget.expense) {
       _editedParticipants = List.from(widget.expense.participantIds);
+      _editedParticipantWeights = widget.expense.participantWeights != null
+          ? Map<String, double>.from(widget.expense.participantWeights!)
+          : {for (var id in _editedParticipants) id: 1.0};
       _editedPayerId = widget.expense.payers.isNotEmpty ? widget.expense.payers.keys.first : null;
       _titleController.text = widget.expense.title;
       
@@ -819,6 +826,9 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                     setState(() {
                       _isEditing = false;
                       _editedParticipants = List.from(widget.expense.participantIds);
+                      _editedParticipantWeights = widget.expense.participantWeights != null
+                          ? Map<String, double>.from(widget.expense.participantWeights!)
+                          : {for (var id in _editedParticipants) id: 1.0};
                       _editedPayerId = widget.expense.payers.isNotEmpty ? widget.expense.payers.keys.first : null;
                       _titleController.text = widget.expense.title;
                       final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
@@ -911,38 +921,146 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
             const SizedBox(height: 8),
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.25),
-              child: ListView(
-                shrinkWrap: true,
-                children: widget.state.members.map((member) {
-                  final isSelected = _editedParticipants.contains(member.id);
-                  return CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Row(
-                      children: [
-                        MemberAvatar(member: member, radius: 14),
-                        const SizedBox(width: 8),
-                        Text(member.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                      ],
-                    ),
-                    value: isSelected,
-                    activeColor: const Color(0xFF10B981),
-                    checkColor: Colors.black,
-                    checkboxShape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    onChanged: (checked) {
-                      setState(() {
-                        if (checked == true) {
-                          if (!_editedParticipants.contains(member.id)) {
-                            _editedParticipants.add(member.id);
-                          }
-                        } else {
-                          _editedParticipants.remove(member.id);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: widget.state.members.length,
+                  separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+                  itemBuilder: (context, index) {
+                    final member = widget.state.members[index];
+                    final isSelected = _editedParticipants.contains(member.id);
+                    final weight = _editedParticipantWeights[member.id] ?? 1.0;
+
+                    // Preview share amount for this participant
+                    final totalWeight = _editedParticipants.fold<double>(
+                        0.0, (sum, id) => sum + (_editedParticipantWeights[id] ?? 1.0));
+                    final totalWeightVal = totalWeight > 0 ? totalWeight : 1.0;
+                    
+                    final double previewTotalCost = widget.expense.category == ExpenseCategory.kratom
+                        ? (widget.kratomPortionCost * (widget.expense.kratomPortions ?? 1) +
+                           widget.syrupPortionCost * (widget.expense.syrupPortions ?? 1) +
+                           inputIce)
+                        : inputIce;
+                    final shareAmount = isSelected ? (previewTotalCost * (weight / totalWeightVal)) : 0.0;
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  _editedParticipants.remove(member.id);
+                                  _editedParticipantWeights.remove(member.id);
+                                } else {
+                                  _editedParticipants.add(member.id);
+                                  _editedParticipantWeights[member.id] = 1.0;
+                                }
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: isSelected ? const Color(0xFF10B981) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isSelected ? const Color(0xFF10B981) : Colors.white30,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: isSelected
+                                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          MemberAvatar(member: member, radius: 14),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  member.name,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.white38,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                if (isSelected && previewTotalCost > 0) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    widget.currencyFormat.format(shareAmount),
+                                    style: const TextStyle(
+                                      color: Color(0xFF10B981),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (isSelected)
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                    icon: const Icon(Icons.remove, color: Colors.white70, size: 12),
+                                    onPressed: () {
+                                      if (weight > 0.5) {
+                                        setState(() {
+                                          _editedParticipantWeights[member.id] = weight - 0.5;
+                                        });
+                                      }
+                                    },
+                                  ),
+                                  Text(
+                                    '${weight.toStringAsFixed(1)}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                    icon: const Icon(Icons.add, color: Colors.white70, size: 12),
+                                    onPressed: () {
+                                      if (weight < 5.0) {
+                                        setState(() {
+                                          _editedParticipantWeights[member.id] = weight + 0.5;
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -983,6 +1101,9 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                     setState(() {
                       _isEditing = false;
                       _editedParticipants = List.from(widget.expense.participantIds);
+                      _editedParticipantWeights = widget.expense.participantWeights != null
+                          ? Map<String, double>.from(widget.expense.participantWeights!)
+                          : {for (var id in _editedParticipants) id: 1.0};
                       _editedPayerId = widget.expense.payers.isNotEmpty ? widget.expense.payers.keys.first : null;
                       _titleController.text = widget.expense.title;
                       final displayFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
@@ -1028,6 +1149,7 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                       iceAmount: widget.expense.category == ExpenseCategory.kratom ? newAmount : null,
                       payers: updatedPayers,
                       participantIds: _editedParticipants,
+                      participantWeights: _editedParticipantWeights,
                     );
 
                     final messenger = ScaffoldMessenger.of(context);
@@ -1145,15 +1267,29 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
               'ຜູ້ເຂົ້າຮ່ວມຫານ (${widget.expense.participantIds.length} ຄົນ)',
               style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.35),
               child: ListView(
                 shrinkWrap: true,
                 children: widget.expense.participantIds.map((partId) {
                   final member = widget.state.members.firstWhere((m) => m.id == partId, orElse: () => Member(id: partId, name: partId, avatarUrl: ''));
+                  
+                  // Calculate weighted share for this participant
+                  final weights = widget.expense.participantWeights ?? {};
+                  final totalWeight = widget.expense.participantIds.fold<double>(
+                      0.0, (sum, id) => sum + (weights[id] ?? 1.0));
+                  final weight = weights[partId] ?? 1.0;
+                  final totalWeightVal = totalWeight > 0 ? totalWeight : 1.0;
+                  
+                  final double individualShare;
+                  if (widget.expense.category == ExpenseCategory.kratom) {
+                    individualShare = widget.totalSessionCost * (weight / totalWeightVal);
+                  } else {
+                    individualShare = widget.expense.totalAmount * (weight / totalWeightVal);
+                  }
+
                   final paidAmount = widget.expense.payers[partId] ?? 0.0;
-                  final netShare = paidAmount - widget.sharePerPerson;
+                  final netShare = paidAmount - individualShare;
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -1170,9 +1306,20 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                member.name,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                              Row(
+                                children: [
+                                  Text(
+                                    member.name,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  if (widget.expense.participantWeights != null && widget.expense.participantWeights!.values.any((w) => w != 1.0)) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '(${weight.toStringAsFixed(1)} ສ່ວນ)',
+                                      style: const TextStyle(color: Colors.white38, fontSize: 10),
+                                    ),
+                                  ],
+                                ],
                               ),
                               if (paidAmount > 0)
                                 Text(
@@ -1194,7 +1341,7 @@ class _ExpenseDetailModalContentState extends State<_ExpenseDetailModalContent> 
                               ),
                             ),
                             Text(
-                              'Boss: -${widget.currencyFormat.format(widget.sharePerPerson)}',
+                              'Boss: -${widget.currencyFormat.format(individualShare)}',
                               style: const TextStyle(color: Colors.white38, fontSize: 9),
                             ),
                           ],

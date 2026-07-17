@@ -30,6 +30,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String? _singlePayerId;
   final Map<String, double> _customPayers = {};
   List<String> _selectedParticipants = [];
+  Map<String, double> _participantWeights = {};
   String? _selectedKratomStockId;
   String? _selectedSyrupStockId;
   int _kratomPortions = 1;
@@ -43,6 +44,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     _dateController = TextEditingController(
       text: DateFormat('dd/MM/yyyy').format(_selectedDate),
     );
+    _iceCostController.addListener(() => setState(() {}));
+    _generalCostController.addListener(() => setState(() {}));
   }
 
   @override
@@ -66,6 +69,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _selectedDate = exp.date;
       _dateController.text = DateFormat('dd/MM/yyyy').format(_selectedDate);
       _selectedParticipants = List.from(exp.participantIds);
+      _participantWeights = exp.participantWeights != null
+          ? Map<String, double>.from(exp.participantWeights!)
+          : {for (var id in _selectedParticipants) id: 1.0};
 
       if (exp.payers.length == 1) {
         _singlePayerId = exp.payers.keys.first;
@@ -97,6 +103,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     if (state.members.isNotEmpty) {
       _singlePayerId = state.members.first.id;
       _selectedParticipants = state.members.map((m) => m.id).toList();
+      _participantWeights = {for (var id in _selectedParticipants) id: 1.0};
 
       final activeKratom =
           state.preStockItems
@@ -237,6 +244,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 : null,
         payers: payersMap,
         participantIds: _selectedParticipants,
+        participantWeights: _participantWeights,
       );
       ref.read(financeProvider.notifier).updateExpense(updatedExpense);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -272,6 +280,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 : null,
         payers: payersMap,
         participantIds: _selectedParticipants,
+        participantWeights: _participantWeights,
       );
       ref.read(financeProvider.notifier).addExpense(newExpense);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -285,6 +294,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Widget build(BuildContext context) {
     _initializeState();
     final state = ref.watch(financeProvider);
+    final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₭', decimalDigits: 0);
     const primaryAccent = Color(0xFF10B981);
 
     return Scaffold(
@@ -990,7 +1000,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Who Participates (Participants Selection Chips)
+                // Who Participates (Participants Selection List)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -999,7 +1009,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         Icon(Icons.group, color: Colors.white.withValues(alpha: 0.6), size: 18),
                         const SizedBox(width: 8),
                         const Text(
-                          'ໃຜກິນ?',
+                          'ໃຜກິນ / ຫານແດ່?',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
@@ -1011,12 +1021,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     TextButton(
                       onPressed: () {
                         setState(() {
-                          if (_selectedParticipants.length ==
-                              state.members.length) {
+                          if (_selectedParticipants.length == state.members.length) {
                             _selectedParticipants = [];
+                            _participantWeights.clear();
                           } else {
-                            _selectedParticipants =
-                                state.members.map((m) => m.id).toList();
+                            _selectedParticipants = state.members.map((m) => m.id).toList();
+                            _participantWeights = {for (var id in _selectedParticipants) id: 1.0};
                           }
                         });
                       },
@@ -1034,60 +1044,168 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: state.members.map((m) {
-                    final isSelected = _selectedParticipants.contains(m.id);
-                    return InkWell(
-                      onTap: () {
-                        setState(() {
-                          if (isSelected) {
-                            _selectedParticipants.remove(m.id);
-                          } else {
-                            _selectedParticipants.add(m.id);
-                          }
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? primaryAccent.withValues(alpha: 0.15)
-                              : const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isSelected ? primaryAccent : Colors.white.withValues(alpha: 0.05),
-                            width: 1.5,
-                          ),
-                        ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: state.members.length,
+                    separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+                    itemBuilder: (context, index) {
+                      final m = state.members[index];
+                      final isSelected = _selectedParticipants.contains(m.id);
+                      final weight = _participantWeights[m.id] ?? 1.0;
+
+                      // Real-time split calculation including portions
+                      final totalAmount = _calculateTotalAmount();
+                      double kratomPortionCostTotal = 0.0;
+                      if (_selectedCategory == ExpenseCategory.kratom && _selectedKratomStockId != null) {
+                        final preItem = state.preStockItems.firstWhere(
+                          (i) => i.id == _selectedKratomStockId,
+                          orElse: () => PreStockItem(id: '', itemName: '', totalCost: 0.0, buyerId: '', date: DateTime.now(), notes: '', portions: 1),
+                        );
+                        if (preItem.id.isNotEmpty && preItem.totalCost > 0) {
+                          final portionCost = preItem.totalCost / (preItem.portions > 0 ? preItem.portions : 1);
+                          kratomPortionCostTotal = portionCost * _kratomPortions;
+                        }
+                      }
+                      double syrupPortionCostTotal = 0.0;
+                      if (_selectedCategory == ExpenseCategory.kratom && _selectedSyrupStockId != null) {
+                        final preItem = state.preStockItems.firstWhere(
+                          (i) => i.id == _selectedSyrupStockId,
+                          orElse: () => PreStockItem(id: '', itemName: '', totalCost: 0.0, buyerId: '', date: DateTime.now(), notes: '', portions: 1),
+                        );
+                        if (preItem.id.isNotEmpty && preItem.totalCost > 0) {
+                          final portionCost = preItem.totalCost / (preItem.portions > 0 ? preItem.portions : 1);
+                          syrupPortionCostTotal = portionCost * _syrupPortions;
+                        }
+                      }
+                      final overallTotalCost = totalAmount + kratomPortionCostTotal + syrupPortionCostTotal;
+
+                      final totalWeight = _selectedParticipants.fold<double>(0.0, (sum, id) => sum + (_participantWeights[id] ?? 1.0));
+                      final totalWeightVal = totalWeight > 0 ? totalWeight : 1.0;
+                      final shareAmount = isSelected ? (overallTotalCost * (weight / totalWeightVal)) : 0.0;
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            MemberAvatar(member: m, radius: 11),
-                            const SizedBox(width: 8),
-                            Text(
-                              m.name,
-                              style: TextStyle(
-                                color: isSelected ? Colors.white : Colors.white70,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                fontSize: 13,
+                            // Custom Checkbox
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedParticipants.remove(m.id);
+                                    _participantWeights.remove(m.id);
+                                  } else {
+                                    _selectedParticipants.add(m.id);
+                                    _participantWeights[m.id] = 1.0;
+                                  }
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? primaryAccent : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: isSelected ? primaryAccent : Colors.white30,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: isSelected
+                                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                    : null,
                               ),
                             ),
-                            if (isSelected) ...[
-                              const SizedBox(width: 6),
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                size: 14,
-                                color: primaryAccent,
+                            const SizedBox(width: 12),
+                            // Avatar & Name
+                            MemberAvatar(member: m, radius: 16),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    m.name,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : Colors.white38,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  if (isSelected && overallTotalCost > 0) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      currencyFormat.format(shareAmount),
+                                      style: const TextStyle(
+                                        color: primaryAccent,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
-                            ],
+                            ),
+                            // Weight Selector (Only visible if selected)
+                            if (isSelected)
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                      icon: const Icon(Icons.remove, color: Colors.white70, size: 14),
+                                      onPressed: () {
+                                        if (weight > 0.5) {
+                                          setState(() {
+                                            _participantWeights[m.id] = weight - 0.5;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                    Text(
+                                      '${weight.toStringAsFixed(1)} ສ່ວນ',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                      icon: const Icon(Icons.add, color: Colors.white70, size: 14),
+                                      onPressed: () {
+                                        if (weight < 5.0) {
+                                          setState(() {
+                                            _participantWeights[m.id] = weight + 0.5;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: 36),
 

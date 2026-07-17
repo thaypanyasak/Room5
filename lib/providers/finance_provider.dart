@@ -73,14 +73,17 @@ class FinanceNotifier extends Notifier<FinanceState> {
     final periods = await _storage.loadPeriods();
 
     // Default members if empty
+    final defaultMembers = [
+      Member(id: 'Thay', name: 'Thay', avatarUrl: 'https://api.dicebear.com/7.x/adventurer/png?seed=Thay'),
+      Member(id: 'Ley', name: 'Ley', avatarUrl: 'https://api.dicebear.com/7.x/lorelei/png?seed=Ley'),
+      Member(id: 'Bualy', name: 'Bualy', avatarUrl: 'https://api.dicebear.com/7.x/fun-emoji/png?seed=Bualy'),
+      Member(id: 'Thui', name: 'Thui', avatarUrl: 'https://api.dicebear.com/7.x/bottts/png?seed=Thui'),
+      Member(id: 'Mei', name: 'Mei', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=Mei'),
+      Member(id: 'Ham', name: 'Ham', avatarUrl: 'https://api.dicebear.com/7.x/adventurer/png?seed=Ham'),
+    ];
+
     if (members.isEmpty) {
-      members = [
-        Member(id: 'Thay', name: 'Thay', avatarUrl: 'https://api.dicebear.com/7.x/adventurer/png?seed=Thay'),
-        Member(id: 'Ley', name: 'Ley', avatarUrl: 'https://api.dicebear.com/7.x/lorelei/png?seed=Ley'),
-        Member(id: 'Bualy', name: 'Bualy', avatarUrl: 'https://api.dicebear.com/7.x/fun-emoji/png?seed=Bualy'),
-        Member(id: 'Thui', name: 'Thui', avatarUrl: 'https://api.dicebear.com/7.x/bottts/png?seed=Thui'),
-        Member(id: 'Mei', name: 'Mei', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=Mei'),
-      ];
+      members = List.from(defaultMembers);
       await _storage.saveMembers(members);
     } else {
       bool updated = false;
@@ -103,6 +106,7 @@ class FinanceNotifier extends Notifier<FinanceState> {
         }
         return m;
       }).toList();
+
       if (updated) {
         await _storage.saveMembers(members);
       }
@@ -237,11 +241,18 @@ class FinanceNotifier extends Notifier<FinanceState> {
         }
       });
 
-      // Deduct debits (split shares)
+      // Deduct debits (split shares based on weights if available)
       if (expense.participantIds.isNotEmpty) {
-        final share = expense.totalAmount / expense.participantIds.length;
+        final weights = expense.participantWeights ?? {};
+        final totalWeight = expense.participantIds.fold<double>(0.0, (sum, partId) {
+          return sum + (weights[partId] ?? 1.0);
+        });
+        final totalWeightVal = totalWeight > 0 ? totalWeight : 1.0;
+
         for (var partId in expense.participantIds) {
           if (balances.containsKey(partId)) {
+            final weight = weights[partId] ?? 1.0;
+            final share = expense.totalAmount * (weight / totalWeightVal);
             balances[partId] = balances[partId]! - share;
           }
         }
@@ -251,6 +262,12 @@ class FinanceNotifier extends Notifier<FinanceState> {
     // Process consumption of pre-stocked items from expenses (debit participants, credit buyer)
     for (var expense in state.expenses) {
       if (expense.category == ExpenseCategory.kratom && expense.participantIds.isNotEmpty) {
+        final weights = expense.participantWeights ?? {};
+        final totalWeight = expense.participantIds.fold<double>(0.0, (sum, partId) {
+          return sum + (weights[partId] ?? 1.0);
+        });
+        final totalWeightVal = totalWeight > 0 ? totalWeight : 1.0;
+
         // Kratom Leaf consumption portion
         if (expense.kratomStockId != null) {
           final preItem = state.preStockItems.firstWhere(
@@ -261,10 +278,11 @@ class FinanceNotifier extends Notifier<FinanceState> {
             final portionCost = preItem.totalCost / (preItem.portions > 0 ? preItem.portions : 1);
             final consumedCost = portionCost * (expense.kratomPortions ?? 1);
             
-            // Debit the session participants
-            final participantShare = consumedCost / expense.participantIds.length;
+            // Debit the session participants based on weight
             for (var partId in expense.participantIds) {
               if (balances.containsKey(partId)) {
+                final weight = weights[partId] ?? 1.0;
+                final participantShare = consumedCost * (weight / totalWeightVal);
                 balances[partId] = balances[partId]! - participantShare;
               }
             }
@@ -287,10 +305,11 @@ class FinanceNotifier extends Notifier<FinanceState> {
             final portionCost = preItem.totalCost / (preItem.portions > 0 ? preItem.portions : 1);
             final consumedCost = portionCost * (expense.syrupPortions ?? 1);
             
-            // Debit the session participants
-            final participantShare = consumedCost / expense.participantIds.length;
+            // Debit the session participants based on weight
             for (var partId in expense.participantIds) {
               if (balances.containsKey(partId)) {
+                final weight = weights[partId] ?? 1.0;
+                final participantShare = consumedCost * (weight / totalWeightVal);
                 balances[partId] = balances[partId]! - participantShare;
               }
             }
@@ -409,18 +428,16 @@ class FinanceNotifier extends Notifier<FinanceState> {
         });
         final remainingPortions = item.startingPortions - usedCount;
         if (remainingPortions > 0) {
-          final portionCost = item.totalCost / (item.portions > 0 ? item.portions : 1);
-          final remainingCost = remainingPortions * portionCost;
-          
           carriedOverStock.add(PreStockItem(
             id: _uuid.v4(),
             itemName: item.itemName,
             type: item.type,
-            totalCost: remainingCost,
+            totalCost: item.totalCost, // Keep original total cost
             buyerId: item.buyerId,
             date: DateTime.now(),
             notes: '${item.notes.isNotEmpty ? "${item.notes} • " : ""}ຍົກມາຈາກ ${periodName}',
-            portions: remainingPortions,
+            portions: item.portions, // Keep original total portions (e.g. 12 or 50)
+            initialRemainingPortions: remainingPortions, // Set starting remaining portions (e.g. 8 or 38)
             isOutOfStock: false,
           ));
         }

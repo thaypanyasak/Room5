@@ -21,6 +21,9 @@ class Expense {
   // List of member IDs who participate in sharing the cost
   final List<String> participantIds;
 
+  // Custom split weights for each participant: {memberId: weight (e.g. 1.0, 0.5)}
+  final Map<String, double>? participantWeights;
+
   Expense({
     required this.id,
     required this.title,
@@ -35,6 +38,7 @@ class Expense {
     this.syrupPortions,
     required this.payers,
     required this.participantIds,
+    this.participantWeights,
   });
 
   Map<String, dynamic> toJson() => {
@@ -51,6 +55,7 @@ class Expense {
         'syrupPortions': syrupPortions,
         'payers': payers,
         'participantIds': participantIds,
+        'participantWeights': participantWeights,
       };
 
   factory Expense.fromJson(Map<String, dynamic> json) => Expense(
@@ -72,6 +77,11 @@ class Expense {
           (k, v) => MapEntry(k, (v as num).toDouble()),
         ),
         participantIds: List<String>.from(json['participantIds'] as List),
+        participantWeights: json['participantWeights'] != null
+            ? (json['participantWeights'] as Map<String, dynamic>).map(
+                (k, v) => MapEntry(k, (v as num).toDouble()),
+              )
+            : null,
       );
 
   Expense copyWith({
@@ -88,6 +98,7 @@ class Expense {
     int? syrupPortions,
     Map<String, double>? payers,
     List<String>? participantIds,
+    Map<String, double>? participantWeights,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -103,6 +114,7 @@ class Expense {
       syrupPortions: syrupPortions ?? this.syrupPortions,
       payers: payers ?? this.payers,
       participantIds: participantIds ?? this.participantIds,
+      participantWeights: participantWeights ?? this.participantWeights,
     );
   }
 }

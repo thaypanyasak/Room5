@@ -10,8 +10,21 @@ import '../widgets/member_avatar.dart';
 
 class MemberDetailScreen extends ConsumerWidget {
   final Member member;
+  final List<Expense>? historicalExpenses;
+  final List<PreStockItem>? historicalPreStockItems;
+  final double? historicalBalance;
+  final String? periodName;
+  final bool isReadOnly;
 
-  const MemberDetailScreen({super.key, required this.member});
+  const MemberDetailScreen({
+    super.key,
+    required this.member,
+    this.historicalExpenses,
+    this.historicalPreStockItems,
+    this.historicalBalance,
+    this.periodName,
+    this.isReadOnly = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,8 +32,11 @@ class MemberDetailScreen extends ConsumerWidget {
     final freshMember = state.members.firstWhere((m) => m.id == member.id, orElse: () => member);
     final notifier = ref.read(financeProvider.notifier);
     final balances = notifier.calculateBalances();
-    final balance = balances[freshMember.id] ?? 0.0;
+    final balance = isReadOnly ? (historicalBalance ?? 0.0) : (balances[freshMember.id] ?? 0.0);
     final isOwed = balance >= 0;
+
+    final preStockItems = historicalPreStockItems ?? state.preStockItems;
+    final expenses = historicalExpenses ?? state.expenses;
 
     final currencyFormat = NumberFormat.currency(
       locale: 'vi_VN',
@@ -30,7 +46,7 @@ class MemberDetailScreen extends ConsumerWidget {
 
     // 1. Stock bought by member
     final stockItemsBought =
-        state.preStockItems.where((item) => item.buyerId == freshMember.id).toList();
+        preStockItems.where((item) => item.buyerId == freshMember.id).toList();
     final double totalStockSpent = stockItemsBought.fold(
       0.0,
       (sum, item) => sum + item.totalCost,
@@ -38,11 +54,11 @@ class MemberDetailScreen extends ConsumerWidget {
 
     // 2. Expenses paid by member (non-kratom, e.g. utility, food)
     final expensesPaid =
-        state.expenses.where((e) => e.payers.containsKey(freshMember.id)).toList();
+        expenses.where((e) => e.payers.containsKey(freshMember.id)).toList();
 
     // 3. Expenses participated in (debited)
     final expensesParticipated =
-        state.expenses
+        expenses
             .where((e) => e.participantIds.contains(freshMember.id))
             .toList();
 
@@ -51,7 +67,7 @@ class MemberDetailScreen extends ConsumerWidget {
 
     // Add stock purchases (credited only for portions actually consumed in the period)
     for (var item in stockItemsBought) {
-      final usedCount = state.expenses.fold<int>(0, (sum, e) {
+      final usedCount = expenses.fold<int>(0, (sum, e) {
         if (item.type == 'kratom' && e.kratomStockId == item.id) {
           return sum + (e.kratomPortions ?? 1);
         }
@@ -109,20 +125,27 @@ class MemberDetailScreen extends ConsumerWidget {
 
     // Add expenses they participated in (shows as debit / negative share)
     for (var e in expensesParticipated) {
+      final weights = e.participantWeights ?? {};
+      final totalWeight = e.participantIds.fold<double>(
+          0.0, (sum, id) => sum + (weights[id] ?? 1.0));
+      final memberWeight = weights[freshMember.id] ?? 1.0;
+      final totalWeightVal = totalWeight > 0 ? totalWeight : 1.0;
+      final ratio = memberWeight / totalWeightVal;
+
       if (e.category == ExpenseCategory.kratom) {
         // Kratom session: they consumed portions of Kratom/Syrup
         final portionPriceKratom =
             e.kratomStockId != null
-                ? _getPortionCost(state.preStockItems, e.kratomStockId!)
+                ? _getPortionCost(preStockItems, e.kratomStockId!)
                 : 0.0;
         final portionPriceSyrup =
             e.syrupStockId != null
-                ? _getPortionCost(state.preStockItems, e.syrupStockId!)
+                ? _getPortionCost(preStockItems, e.syrupStockId!)
                 : 0.0;
 
-        final kratomShare = (portionPriceKratom * (e.kratomPortions ?? 1)) / e.participantIds.length;
-        final syrupShare = (portionPriceSyrup * (e.syrupPortions ?? 1)) / e.participantIds.length;
-        final iceShare = e.totalAmount / e.participantIds.length;
+        final kratomShare = (portionPriceKratom * (e.kratomPortions ?? 1)) * ratio;
+        final syrupShare = (portionPriceSyrup * (e.syrupPortions ?? 1)) * ratio;
+        final iceShare = e.totalAmount * ratio;
         final totalSessionShare = kratomShare + syrupShare + iceShare;
 
         if (totalSessionShare > 0) {
@@ -140,7 +163,7 @@ class MemberDetailScreen extends ConsumerWidget {
         }
       } else {
         // Regular expense share (utility, food, etc.)
-        final share = e.totalAmount / e.participantIds.length;
+        final share = e.totalAmount * ratio;
         activities.add(
           _ActivityItem(
             date: e.date,
@@ -191,37 +214,40 @@ class MemberDetailScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     GestureDetector(
-                      onTap: () async {
-                        final picker = ImagePicker();
-                        final image = await picker.pickImage(
-                          source: ImageSource.gallery,
-                          maxWidth: 512,
-                          maxHeight: 512,
-                          imageQuality: 85,
-                        );
-                        if (image != null) {
-                          await ref.read(financeProvider.notifier).updateMemberAvatar(freshMember.id, image.path);
-                        }
-                      },
+                      onTap: isReadOnly
+                          ? null
+                          : () async {
+                              final picker = ImagePicker();
+                              final image = await picker.pickImage(
+                                source: ImageSource.gallery,
+                                maxWidth: 512,
+                                maxHeight: 512,
+                                imageQuality: 85,
+                              );
+                              if (image != null) {
+                                await ref.read(financeProvider.notifier).updateMemberAvatar(freshMember.id, image.path);
+                              }
+                            },
                       child: Stack(
                         children: [
                           MemberAvatar(member: freshMember, radius: 40),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF10B981),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.camera_alt_rounded,
-                                size: 14,
-                                color: Colors.black,
+                          if (!isReadOnly)
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF10B981),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt_rounded,
+                                  size: 14,
+                                  color: Colors.black,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -520,46 +546,50 @@ class MemberDetailScreen extends ConsumerWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'ອັບໂຫຼດ QR Code ສ່ວນຕົວເພື່ອໃຊ້ຮັບເງິນ',
-                    style: TextStyle(
-                      color: Colors.white38,
-                      fontSize: 12,
+                  if (!isReadOnly) ...[
+                    const SizedBox(height: 6),
+                    const Text(
+                      'ອັບໂຫຼດ QR Code ສ່ວນຕົວເພື່ອໃຊ້ຮັບເງິນ',
+                      style: TextStyle(
+                        color: Colors.white38,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+            if (!isReadOnly) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
                 ),
-                elevation: 0,
+                onPressed: () async {
+                  final picker = ImagePicker();
+                  final image = await picker.pickImage(
+                    source: ImageSource.gallery,
+                    maxWidth: 1024,
+                    maxHeight: 1024,
+                    imageQuality: 85,
+                  );
+                  if (image != null) {
+                    await ref.read(financeProvider.notifier).updateMemberQR(member.id, image.path);
+                  }
+                },
+                icon: const Icon(Icons.photo_library_rounded, size: 20),
+                label: const Text(
+                  'ເລືອກຮູບພາບ QR',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
-              onPressed: () async {
-                final picker = ImagePicker();
-                final image = await picker.pickImage(
-                  source: ImageSource.gallery,
-                  maxWidth: 1024,
-                  maxHeight: 1024,
-                  imageQuality: 85,
-                );
-                if (image != null) {
-                  await ref.read(financeProvider.notifier).updateMemberQR(member.id, image.path);
-                }
-              },
-              icon: const Icon(Icons.photo_library_rounded, size: 20),
-              label: const Text(
-                'ເລືອກຮູບພາບ QR',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
+            ]
           ] else ...[
             Container(
               padding: const EdgeInsets.all(16),
@@ -596,75 +626,77 @@ class MemberDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 28),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    side: BorderSide(color: Colors.white.withOpacity(0.1)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: () async {
-                    final picker = ImagePicker();
-                    final image = await picker.pickImage(
-                      source: ImageSource.gallery,
-                      maxWidth: 1024,
-                      maxHeight: 1024,
-                      imageQuality: 85,
-                    );
-                    if (image != null) {
-                      await ref.read(financeProvider.notifier).updateMemberQR(member.id, image.path);
-                    }
-                  },
-                  icon: const Icon(Icons.sync_rounded, size: 18),
-                  label: const Text('ປ່ຽນຮູບໃໝ່'),
-                ),
-                const SizedBox(width: 16),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFF87171),
-                    side: BorderSide(color: const Color(0xFFF87171).withOpacity(0.2)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: const Color(0xFF1E293B),
-                        title: const Text('ຢືນຢັນການລຶບ', style: TextStyle(color: Colors.white)),
-                        content: const Text(
-                          'ທ່ານຕ້ອງການລຶບ QR Code ນີ້ແທ້ຫຼືບໍ່?',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('ຍົກເລີກ', style: TextStyle(color: Colors.white38)),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('ລຶບເລີຍ', style: TextStyle(color: Color(0xFFF87171))),
-                          ),
-                        ],
+            if (!isReadOnly) ...[
+              const SizedBox(height: 28),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    );
-                    if (confirm == true) {
-                      await ref.read(financeProvider.notifier).updateMemberQR(member.id, null);
-                    }
-                  },
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  label: const Text('ລຶບຮູບ'),
-                ),
-              ],
-            ),
+                    ),
+                    onPressed: () async {
+                      final picker = ImagePicker();
+                      final image = await picker.pickImage(
+                        source: ImageSource.gallery,
+                        maxWidth: 1024,
+                        maxHeight: 1024,
+                        imageQuality: 85,
+                      );
+                      if (image != null) {
+                        await ref.read(financeProvider.notifier).updateMemberQR(member.id, image.path);
+                      }
+                    },
+                    icon: const Icon(Icons.sync_rounded, size: 18),
+                    label: const Text('ປ່ຽນຮູບໃໝ່'),
+                  ),
+                  const SizedBox(width: 16),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFF87171),
+                      side: BorderSide(color: const Color(0xFFF87171).withOpacity(0.2)),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: const Color(0xFF1E293B),
+                          title: const Text('ຢືນຢັນການລຶບ', style: TextStyle(color: Colors.white)),
+                          content: const Text(
+                            'ທ່ານຕ້ອງການລຶບ QR Code ນີ້ແທ້ຫຼືບໍ່?',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('ຍົກເລີກ', style: TextStyle(color: Colors.white38)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('ລຶບເລີຍ', style: TextStyle(color: Color(0xFFF87171))),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await ref.read(financeProvider.notifier).updateMemberQR(member.id, null);
+                      }
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('ລຶບຮູບ'),
+                  ),
+                ],
+              ),
+            ],
           ],
         ],
       ),
